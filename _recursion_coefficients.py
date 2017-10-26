@@ -30,11 +30,13 @@ def recursionCoefficients(n=2, g=1, lb=[-1], rb=[1], funcs=[lambda x: 1.], w=[0]
     """
     # ToDo: check if lb, rb and funcs have the same length
     # ToDo: check if x and w have the same length
-    # ToDo: reduce domain of h
+    # ToDo: check if n<ncap, that is n<60000
 
     # convert continuous functions in J to h_squared, store those in place in the list funcs
     for count, function in enumerate(funcs):
-        h_squared = _j_to_hsquared(function, g)
+        newlb, newrb, h_squared = _j_to_hsquared(function, lb[count], rb[count], g)
+        lb[count] = newlb
+        rb[count] = newrb
         funcs[count] = h_squared
 
     # convert delta peaks in J to h_squared, first convert weight w and then position x
@@ -43,23 +45,32 @@ def recursionCoefficients(n=2, g=1, lb=[-1], rb=[1], funcs=[lambda x: 1.], w=[0]
     for count, position in enumerate(x):
         x[count] = position / g
 
+    # ncap=60000 seems to be highest ncap that works, higher values will break the algorithm.
+    # For a speedup decrease ncap and sacrifice some accuracy (for small enough n the sacrifice is negligible)
     p = orth.OrthogonalPolynomial(n,
                                   lb=lb, rb=rb,  # Domains
-                                  funcs=funcs, ncap=100 * n,
+                                  funcs=funcs, ncap=60000,
                                   x=x, w=w)  # discrete points in weight function
 
     return p.alpha, p.beta
 
 
-def _j_to_hsquared(function, g):
+def _j_to_hsquared(function, lb, rb, g):
     """
     Transform J(omega) to h^2(omega)
     :param function: J(omega)
+    :param lb: left boundary
+    :param rb: right boundary
     :param g: factor
-    :return: h^2
+    :return: lb, rb, h^2 Where lb and rb are the new left and right boundaries for h^2
     """
     h_squared = lambda x: function(g * x) * g / math.pi
-    return h_squared
+
+    # change the boundaries of the intervals accordingly
+    lb = lb / g
+    rb = rb / g
+
+    return lb, rb, h_squared
 
 
 # -----------------------------------------
@@ -70,7 +81,7 @@ def _j_to_hsquared(function, g):
 functions = [lambda x: 1. / math.sqrt(2. * math.pi) * np.exp(-x ** 2 / 2.)]
 
 # start_time=time.clock()
-alphas, betas = recursionCoefficients(n=100, funcs=functions, lb=[-np.inf], rb=[np.inf])
+alphas, betas = recursionCoefficients(n=20, funcs=functions, lb=[-np.inf], rb=[np.inf])
 # print(time.clock()-start_time, "s")
 print(alphas)
 print(betas)
