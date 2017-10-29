@@ -10,8 +10,6 @@ Date:
 
 import math
 import orthpol as orth
-import numpy as np
-import time
 
 
 def recursionCoefficients(n=2, g=1, lb=[-1], rb=[1], funcs=[lambda x: 1.], w=[0], x=[0]):
@@ -49,7 +47,7 @@ def recursionCoefficients(n=2, g=1, lb=[-1], rb=[1], funcs=[lambda x: 1.], w=[0]
     # For a speedup decrease ncap and sacrifice some accuracy (for small enough n the sacrifice is negligible)
     p = orth.OrthogonalPolynomial(n,
                                   lb=lb, rb=rb,  # Domains
-                                  funcs=funcs, ncap=60000,
+                                  funcs=funcs, ncap=20000,
                                   x=x, w=w)  # discrete points in weight function
 
     return p.alpha, p.beta
@@ -71,17 +69,3 @@ def _j_to_hsquared(function, lb, rb, g):
     rb = rb / g
 
     return lb, rb, h_squared
-
-
-# -----------------------------------------
-# -----------------------------------------
-# Testing code
-
-
-functions = [lambda x: 1. / math.sqrt(2. * math.pi) * np.exp(-x ** 2 / 2.)]
-
-# start_time=time.clock()
-alphas, betas = recursionCoefficients(n=20, funcs=functions, lb=[-np.inf], rb=[np.inf])
-# print(time.clock()-start_time, "s")
-print(alphas)
-print(betas)
