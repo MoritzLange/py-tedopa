@@ -1,5 +1,0 @@
-{
-  "tests/test_recursion_coefficients_of_classical_polynomials.py::TestCoefficients::()::test_chebyshev": true,
-  "tests/test_recursion_coefficients_of_classical_polynomials.py::TestCoefficients::()::test_hermite": true,
-  "tests/test_recursion_coefficients_of_classical_polynomials.py::TestCoefficients::()::test_legendre": true
-}
