@@ -5,7 +5,7 @@ Author:
     Moritz Lange
 
 Date:
-    10/24/2017
+    11/07/2017
 """
 
 import math
@@ -14,7 +14,8 @@ import orthpol as orth
 
 def recursionCoefficients(n=2, g=1, lb=-1, rb=1, j=lambda x: 1., ncap=60000):
     """
-    Calculate the recursion coefficients for a given dispersion relation J(omega).
+    Calculate the recursion coefficients for monic polynomials for a given dispersion relation J(omega) as defined
+    in the paper Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188
     J(omega) must be a python lambda function.
     
     :param n: Number of recursion coefficients required
@@ -38,10 +39,10 @@ def recursionCoefficients(n=2, g=1, lb=-1, rb=1, j=lambda x: 1., ncap=60000):
         return [0], [0]
 
     # convert continuous functions in J to h_squared, store those in place in the list j
-    lb, rb, h_squared = _j_to_hsquared(func = j, lb = lb, rb = rb, g = g)
+    lb, rb, h_squared = _j_to_hsquared(func=j, lb=lb, rb=rb, g=g)
 
     p = orth.OrthogonalPolynomial(n,
-                                  left=lb, right=rb,  # Domains
+                                  left=lb, right=rb,
                                   wf=h_squared, ncap=ncap)
 
     return p.alpha, p.beta
@@ -49,7 +50,7 @@ def recursionCoefficients(n=2, g=1, lb=-1, rb=1, j=lambda x: 1., ncap=60000):
 
 def _j_to_hsquared(func, lb, rb, g):
     """
-    Transform J(omega) to h^2(omega)
+    Transform J(omega) to h^2(omega) which will be the weight function for the generated polynomials
     :param func: J(omega)
     :param lb: left boundary
     :param rb: right boundary
