@@ -33,7 +33,7 @@ class TestCoefficients(object):
         rb = rb * g
 
         # Calculate the recursion coefficients, the alphas and betas
-        alphas_numeric, betas_numeric = _recursion_coefficients.recursionCoefficients(n=n, g=g, j=j, lb=lb,
+        alphas_numeric, betas_numeric = _recursion_coefficients.recursionCoefficients(n=n - 1, g=g, j=j, lb=lb,
                                                                                       rb=rb,
                                                                                       ncap=10000)
 
@@ -41,10 +41,8 @@ class TestCoefficients(object):
         alphas = [0] * n
         betas = self.generate_chebyshev_betas(n)
 
-        for k, alpha_k in enumerate(alphas):
-            assert abs(alpha_k - alphas_numeric[k]) < TestCoefficients.precision
-        for k, beta_k in enumerate(betas):
-            assert abs(beta_k - betas_numeric[k]) < TestCoefficients.precision
+        assert np.allclose(alphas, alphas_numeric, atol=self.precision)
+        assert np.allclose(betas, betas_numeric, atol=self.precision)
 
     def test_legendre(self):
         """Tests if the recursion coefficients calculated for the legendre polynomials are the right ones.
@@ -64,7 +62,7 @@ class TestCoefficients(object):
         rb = rb * g
 
         # Calculate the recursion coefficients, the alphas and betas
-        alphas_numeric, betas_numeric = _recursion_coefficients.recursionCoefficients(n=n, g=g, j=j, lb=lb,
+        alphas_numeric, betas_numeric = _recursion_coefficients.recursionCoefficients(n=n - 1, g=g, j=j, lb=lb,
                                                                                       rb=rb,
                                                                                       ncap=10000)
 
@@ -72,10 +70,8 @@ class TestCoefficients(object):
         alphas = [0] * n
         betas = self.generate_legendre_betas(n)
 
-        for k, alpha_k in enumerate(alphas):
-            assert abs(alpha_k - alphas_numeric[k]) < TestCoefficients.precision
-        for k, beta_k in enumerate(betas):
-            assert abs(beta_k - betas_numeric[k]) < TestCoefficients.precision
+        assert np.allclose(alphas, alphas_numeric, atol=self.precision)
+        assert np.allclose(betas, betas_numeric, atol=self.precision)
 
     def test_hermite(self):
         """Tests if the recursion coefficients calculated for the hermite polynomials are the right ones.
@@ -95,7 +91,7 @@ class TestCoefficients(object):
         rb = rb * g
 
         # Calculate the recursion coefficients, the alphas and betas
-        alphas_numeric, betas_numeric = _recursion_coefficients.recursionCoefficients(n=n, g=g, j=j, lb=lb,
+        alphas_numeric, betas_numeric = _recursion_coefficients.recursionCoefficients(n=n - 1, g=g, j=j, lb=lb,
                                                                                       rb=rb,
                                                                                       ncap=10000)
 
@@ -103,10 +99,8 @@ class TestCoefficients(object):
         alphas = [0] * n
         betas = self.generate_hermite_betas(n)
 
-        for k, alpha_k in enumerate(alphas):
-            assert abs(alpha_k - alphas_numeric[k]) < TestCoefficients.precision
-        for k, beta_k in enumerate(betas):
-            assert abs(beta_k - betas_numeric[k]) < TestCoefficients.precision
+        assert np.allclose(alphas, alphas_numeric, atol=self.precision)
+        assert np.allclose(betas, betas_numeric, atol=self.precision)
 
     def generate_hermite_betas(self, n=10):
         """

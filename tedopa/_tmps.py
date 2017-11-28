@@ -9,8 +9,8 @@ Date:
 """
 
 import mpnum as mp
-from scipy.linalg import expm
 import numpy as np
+from scipy.linalg import expm
 from itertools import repeat
 
 
@@ -23,7 +23,7 @@ def evolve(state, hamiltonians, t, num_time_steps, trotter_order, method):
             It is assumed, that every site has two legs and all legs of the state are of the same physical dimension
         hamiltonians (list of numpy.ndarray): List of two Hamiltonians, the first acting on every single site, the
             second acting on every pair of two adjacent sites
-        t (int): The time for which the evolution should be computed
+        t (float): The time for which the evolution should be computed
         num_time_steps (int): The number of time steps or Trotter slices for the time evolution
         trotter_order (int): Which order of trotter should be used. Currently implemented are only 1 and 2
         method (str): Which method to use. Either 'mpo' or 'pmps', leading to computations based on matrix product
@@ -36,10 +36,15 @@ def evolve(state, hamiltonians, t, num_time_steps, trotter_order, method):
     # ToDo: Make sure the hamiltonians are of the right dimension
     # ToDo: Implement evolve_pmps()
 
+    if t == 0:
+        return state
+
     if method == 'mpo':
-        evolved_state = evolve_mpo(state, hamiltonians, trotter_order, t, num_time_steps)
+        evolved_state = evolve_mpo(state=state, hamiltonians=hamiltonians, t=t, num_time_steps=num_time_steps,
+                                   trotter_order=trotter_order)
     elif method == 'pmps':
-        evolved_state = evolve_pmps(state, hamiltonians, trotter_order, t, num_time_steps)
+        evolved_state = evolve_pmps(state=state, hamiltonians=hamiltonians, t=t, num_time_steps=num_time_steps,
+                                    trotter_order=trotter_order)
     else:
         return state
 
@@ -57,20 +62,23 @@ def evolve_mpo(state, hamiltonians, t, num_time_steps, trotter_order):
         mpnum.MPArray: The evolved state's density matrix
     """
 
+    initialState = state.copy()
+
     # error acceptable for compression
     relerr = 1e-4
     # max ranks acceptable
     maxRanks = 100
 
-    u, u_dagger = trotter(hamiltonians, trotter_order=trotter_order, num_sites=len(state), t=t,
-                          num_time_steps=num_time_steps)
+    u, u_dagger = trotter(hamiltonians=hamiltonians, t=t, num_time_steps=num_time_steps, trotter_order=trotter_order,
+                          num_sites=len(state))
 
     for i in range(num_time_steps):
         state = mp.dot(mp.dot(u, state), u_dagger)
         state.compress(method='svd', relerr=relerr)
         # implement something to store the error here
         if max(state.ranks) > maxRanks:
-            break
+            print("maxRanks exceeded, returning initial state!")
+            return initialState
 
     return state
 
@@ -86,7 +94,8 @@ def evolve_pmps(state, hamiltonians, t, num_time_steps, trotter_order):
             mpnum.MPArray: The evolved state's density matrix
         """
     # To be implemented, for now just redirect to evolve_mpo()
-    return evolve_mpo(state, hamiltonians, trotter_order, t, num_time_steps)
+    return evolve_mpo(state=state, hamiltonians=hamiltonians, t=t, num_time_steps=num_time_steps,
+                      trotter_order=trotter_order)
 
 
 def trotter(hamiltonians, t, num_time_steps, trotter_order, num_sites):
@@ -96,7 +105,7 @@ def trotter(hamiltonians, t, num_time_steps, trotter_order, num_sites):
     Args:
         hamiltonians (list of numpy.ndarray): List of two Hamiltonians, the first acting on every single site, the
             second acting on every pair of two adjacent sites
-        t (int): The time for which the evolution should be computed
+        t (float): The time for which the evolution should be computed
         num_time_steps (int): The number of time steps or Trotter slices for the time evolution
         trotter_order (int): Which order of trotter should be used. Currently implemented are only 1 and 2
         num_sites (int): Number of sites of the state to be evolved
@@ -223,7 +232,7 @@ def matrix_to_mpo(matrix, num_sites, site_shape):
     Args:
         matrix (numpy.ndarray): The matrix to be transformed to an MPO
         num_sites (int): The number of sites the MPO should have
-        site_shape (list of int): The shape every single site of the resulting MPO should have, as used in mpnum.
+        site_shape (tuple of int): The shape every single site of the resulting MPO should have, as used in mpnum.
             For example a site with two legs each of dimension two would look like (2,2)
 
     Returns:
