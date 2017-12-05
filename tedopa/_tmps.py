@@ -61,11 +61,11 @@ def evolve(state, hamiltonians, t, num_trotter_slices, trotter_order, method):
     if method == 'pmps':
         site_arrays = []
         for i in range(len(state)):
-            arr = state.lt[0][0, ..., 0]
+            arr = state.lt[i][0, ..., 0]
             arr = arr / norm(arr)
             eigvals, eigvecs = eigh(arr)
-            eigvals = np.sqrt(eigvals)
-            new_arr = eigvecs * eigvals[None, ...]
+            sq_eigvals = np.sqrt(eigvals)
+            new_arr = eigvecs * sq_eigvals[None, ...]
             site_arrays = site_arrays + [new_arr]
         state = mp.MPArray.from_kron(site_arrays)
         state.compress(relerr=1e-15)
