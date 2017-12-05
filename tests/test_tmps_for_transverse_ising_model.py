@@ -10,6 +10,7 @@ import numpy as np
 import mpnum as mp
 from tedopa import _tmps
 
+# NOT WORKING YET
 
 class TestTMPS(object):
     precision = 1e-5  # required precision of the tMPS results

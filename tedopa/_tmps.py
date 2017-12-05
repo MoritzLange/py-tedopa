@@ -10,7 +10,9 @@ Date:
 
 import mpnum as mp
 import numpy as np
+from numpy.linalg import norm
 from scipy.linalg import expm
+from scipy.linalg import eigh
 from itertools import repeat
 
 
@@ -27,7 +29,8 @@ def evolve(state, hamiltonians, t, num_trotter_slices, trotter_order, method):
         num_trotter_slices (int): The number of time steps or Trotter slices for the time evolution
         trotter_order (int): Which order of trotter should be used. Currently implemented are only 1 and 2
         method (str): Which method to use. Either 'mpo' or 'pmps', leading to computations based on matrix product
-            operators for density matrices or purified states for density matrices
+            operators for density matrices or purified states for density matrices. For 'pmps' the initial state
+            must be a product state
 
     Returns:
         mpnum.MPArray: The evolved state's density matrix
@@ -35,39 +38,17 @@ def evolve(state, hamiltonians, t, num_trotter_slices, trotter_order, method):
     # ToDo: Maybe add support for states with different physical dimensions at each site (if not too complicated)
     # ToDo: Maybe add support for hamiltonians depending on time (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
-    # ToDo: Implement evolve_pmps()
+    # ToDo: Implement tracking of errors
 
     # for speedup compress everything as much as possible
     state.compress(relerr=1e-15)
+    state = state / mp.norm(state)
 
     if len(state) < 3:
         raise ValueError("State has too few sites")
 
     if t == 0:
         return state
-
-    if method == 'mpo':
-        evolved_state = evolve_mpo(state=state, hamiltonians=hamiltonians, t=t, num_trotter_slices=num_trotter_slices,
-                                   trotter_order=trotter_order)
-    elif method == 'pmps':
-        evolved_state = evolve_pmps(state=state, hamiltonians=hamiltonians, t=t, num_trotter_slices=num_trotter_slices,
-                                    trotter_order=trotter_order)
-    else:
-        return state
-
-    return evolved_state
-
-
-def evolve_mpo(state, hamiltonians, t, num_trotter_slices, trotter_order):
-    """
-    Evolve the state using MPO representation instead of purified states, for further documentation see evolve().
-
-    Args:
-        See evolve()
-
-    Returns:
-        mpnum.MPArray: The evolved state's density matrix
-    """
 
     initialState = state.copy()
 
@@ -76,34 +57,42 @@ def evolve_mpo(state, hamiltonians, t, num_trotter_slices, trotter_order):
     # max ranks acceptable
     maxRanks = 100
 
+    # purify the state
+    if method == 'pmps':
+        site_arrays = []
+        for i in range(len(state)):
+            arr = state.lt[0][0, ..., 0]
+            arr = arr / norm(arr)
+            eigvals, eigvecs = eigh(arr)
+            eigvals = np.sqrt(eigvals)
+            new_arr = eigvecs * eigvals[None, ...]
+            site_arrays = site_arrays + [new_arr]
+        state = mp.MPArray.from_kron(site_arrays)
+        state.compress(relerr=1e-15)
+        state = state / mp.norm(state)
+
+    # find time evolution operator for one trotter step
     u = trotter(hamiltonians=hamiltonians, t=t, num_trotter_slices=num_trotter_slices, trotter_order=trotter_order,
                 num_sites=len(state))
-    u_dagger = u.adj()
+    if method == 'mpo':
+        u_dagger = u.adj()
 
+    # do time evolution
     for i in range(num_trotter_slices):
-        state = mp.dot(mp.dot(u, state), u_dagger)
+        state = mp.dot(u, state)
+        if method == 'mpo':
+            state = mp.dot(state, u_dagger)
         # in contrast to every other compression in this file, this one is not for speedup but part of the trotter algorithm
         state.compress(method='svd', relerr=relerr)
+        state = state / mp.norm(state)
         # implement something to store the error here
         if max(state.ranks) > maxRanks:
             raise RecursionError("Max ranks for MPO exceeded")
 
+    if method == "pmps":
+        state = mp.pmps_to_mpo(state)
+
     return state
-
-
-def evolve_pmps(state, hamiltonians, t, num_trotter_slices, trotter_order):
-    """
-        Evolve the state using purified state representation instead of MPOs, for further documentation see evolve().
-
-        Args:
-            See evolve()
-
-        Returns:
-            mpnum.MPArray: The evolved state's density matrix
-        """
-    # To be implemented, for now just redirect to evolve_mpo()
-    return evolve_mpo(state=state, hamiltonians=hamiltonians, t=t, num_trotter_slices=num_trotter_slices,
-                      trotter_order=trotter_order)
 
 
 def trotter(hamiltonians, t, num_trotter_slices, trotter_order, num_sites):
@@ -164,6 +153,7 @@ def trotter(hamiltonians, t, num_trotter_slices, trotter_order, num_sites):
 
     # and compress the product
     u.compress(relerr=1e-15)
+    u = u / mp.norm(u)
 
     return u
 
@@ -188,6 +178,7 @@ def mpo_on_odd(mpo_elem, mpo_fill, num_sites):
     if (num_sites % 2 == 1):
         odd = mp.chain([odd, mpo_fill])
     odd.compress(relerr=1e-15)
+    odd = odd / mp.norm(odd)
 
     return odd
 
@@ -210,6 +201,7 @@ def mpo_on_even(mpo_elem, num_sites, dim):
     if (num_sites % 2 == 0):
         even = mp.chain([even, mpo_identity(dim=dim)])
     even.compress(relerr=1e-15)
+    even = even / mp.norm(even)
 
     return even
 
@@ -228,6 +220,7 @@ def mpo_identity(dim):
     id = np.identity(dim)
     mpo_id = mp.MPArray.from_array_global(id, ndims=2)
     mpo_id.compress(relerr=1e-15)
+    mpo_id = mpo_id / mp.norm(mpo_id)
 
     return mpo_id
 
@@ -251,5 +244,6 @@ def matrix_to_mpo(matrix, num_sites, site_shape):
     matrix = matrix.reshape(newShape)
     mpo = mp.MPArray.from_array_global(matrix, ndims=len(site_shape))
     mpo.compress(relerr=1e-15)
+    mpo = mpo / mp.norm(mpo)
 
     return mpo
