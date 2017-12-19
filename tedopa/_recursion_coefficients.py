@@ -3,9 +3,6 @@ Functions to calculate recursion coefficients.
 
 Author:
     Moritz Lange
-
-Date:
-    11/07/2017
 """
 
 import math

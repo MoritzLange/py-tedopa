@@ -1,249 +1,218 @@
 """
-Functions to calculate recursion coefficients.
+Functions to calculate the time evolution of an operator.
 
 Author:
     Moritz Lange
-
-Date:
-    28/07/2017
 """
 
 import mpnum as mp
 import numpy as np
-from numpy.linalg import norm
 from scipy.linalg import expm
-from scipy.linalg import eigh
 from itertools import repeat
 
 
-def evolve(state, hamiltonians, t, num_trotter_slices, trotter_order, method):
+def evolve(state, hamiltonians, t, num_trotter_slices, method, compr):
     """
     Evolve a state using tMPS.
 
     Args:
         state (mpnum.MPArray): The state to be evolved in time (the density matrix, not wave function).
-            It is assumed, that every site has two legs and all legs of the state are of the same physical dimension
-        hamiltonians (list of numpy.ndarray): List of two Hamiltonians, the first acting on every single site, the
-            second acting on every pair of two adjacent sites
+            It is assumed, that every site has two legs and all legs of the state are of the same physical dimension.
+            The state has to be an MPO or PMPS, depending on which method is chosen
+        hamiltonians (list): Either a list containing the Hamiltonian acting on every single site
+            and the Hamiltonian acting on every two adjacents sites, like [H_i, H_ij],
+            or a list containing a list of Hamiltonians acting on the single sites
+            and a list of Hamiltonians acting on each two adjacent sites, like
+            [[h1, h2, h3, ...], [h12, h23, h34, ...]]
         t (float): The time for which the evolution should be computed
         num_trotter_slices (int): The number of time steps or Trotter slices for the time evolution
         trotter_order (int): Which order of trotter should be used. Currently implemented are only 1 and 2
         method (str): Which method to use. Either 'mpo' or 'pmps', leading to computations based on matrix product
-            operators for density matrices or purified states for density matrices. For 'pmps' the initial state
-            must be a product state
+            operators for density matrices or purified states for density matrices. PMPS is faster.
+        compr: Compression parameters for the Trotter steps
 
     Returns:
-        mpnum.MPArray: The evolved state's density matrix
+        mpnum.MPArray: The evolved state's density matrix as MPO or PMPS, depending on chosen method
     """
-    # ToDo: Maybe add support for states with different physical dimensions at each site (if not too complicated)
+    # ToDo: See if normalization is in fact in place
+    # ToDo: Implement possibility to store time evolution at different times while calculating, instead of just at the end
+    # ToDo: Implement opportunity to omit the single-site-hamiltonians to decrease the error
     # ToDo: Maybe add support for hamiltonians depending on time (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
     # ToDo: Implement tracking of errors
 
-    # for speedup compress everything as much as possible
-    state.compress(relerr=1e-15)
-    state = state / mp.norm(state)
+    _compress_losslessly(state, method)
 
-    if len(state) < 3:
-        raise ValueError("State has too few sites")
+    if len(state) < 3: raise ValueError("State has too few sites")
+    if t == 0: return state
 
-    if t == 0:
-        return state
-
-    initialState = state.copy()
-
-    # error acceptable for compression during each Trotter step
-    relerr = 1e-8
-    # max ranks acceptable
-    maxRanks = 100
-
-    # purify the state
-    if method == 'pmps':
-        site_arrays = []
-        for i in range(len(state)):
-            arr = state.lt[i][0, ..., 0]
-            arr = arr / norm(arr)
-            eigvals, eigvecs = eigh(arr)
-            sq_eigvals = np.sqrt(eigvals)
-            new_arr = eigvecs * sq_eigvals[None, ...]
-            site_arrays = site_arrays + [new_arr]
-        state = mp.MPArray.from_kron(site_arrays)
-        state.compress(relerr=1e-15)
-        state = state / mp.norm(state)
-
-    # find time evolution operator for one trotter step
-    u = trotter(hamiltonians=hamiltonians, t=t, num_trotter_slices=num_trotter_slices, trotter_order=trotter_order,
-                num_sites=len(state))
+    u = _trotter(hamiltonians=hamiltonians, t=t, num_trotter_slices=num_trotter_slices, num_sites=len(state))
+    _compress_losslessly(u, method)
     if method == 'mpo':
-        u_dagger = u.adj()
+        u_dagger = u.T.conj()
 
-    # do time evolution
+    # evolve in time
     for i in range(num_trotter_slices):
         state = mp.dot(u, state)
-        if method == 'mpo':
-            state = mp.dot(state, u_dagger)
-        # in contrast to every other compression in this file, this one is not for speedup but part of the trotter algorithm
-        state.compress(method='svd', relerr=relerr)
-        state = state / mp.norm(state)
+        if method == 'mpo': state = mp.dot(state, u_dagger)
+        _normalize(state, method)
+        overlap = state.compress(**compr)
         # implement something to store the error here
-        if max(state.ranks) > maxRanks:
-            raise RecursionError("Max ranks for MPO exceeded")
 
-    if method == "pmps":
-        state = mp.pmps_to_mpo(state)
+    _normalize(state, method)
 
     return state
 
 
-def trotter(hamiltonians, t, num_trotter_slices, trotter_order, num_sites):
+def _trotter(hamiltonians, t, num_trotter_slices, num_sites):
     """
     Calculate the time evolution operators u and u_dagger, each comprising even and odd terms, for one Trotter slice.
 
     Args:
-        hamiltonians (list of numpy.ndarray): List of two Hamiltonians, the first acting on every single site, the
-            second acting on every pair of two adjacent sites
+        hamiltonians (list): List of two lists of Hamiltonians, the Hamiltonians in the first
+            acting on every single site, the Hamiltonians in the second acting on every pair of two adjacent sites
         t (float): The time for which the evolution should be computed
         num_trotter_slices (int): The number of time steps or Trotter slices for the time evolution
-        trotter_order (int): Which order of trotter should be used. Currently implemented are only 1 and 2
         num_sites (int): Number of sites of the state to be evolved
 
     Returns:
-        mpnum.MPArray: The time evolution operators u and u_dagger for one Trotter slice
+        mpnum.MPArray: The time evolution operator u for one Trotter slice
     """
-    hamiltonian1 = hamiltonians[0]  # the hamiltonian acting on every site
-    hamiltonian2 = hamiltonians[1]  # the hamiltonian acting on every two adjacent sites
-
-    dim = int(len(hamiltonian1))  # The dimension of the physical legs of the state
-
-    # hamiltonian1 acting on two sites
-    hamiltonian1_2 = np.kron(hamiltonian1, np.identity(dim)) + np.kron(np.identity(dim), hamiltonian1)
-
-    trotter_factor_even = 1
-
-    if trotter_order == 1:
-        trotter_factor_odd = 1
-    else:  # trotter_order == 2
-        trotter_factor_odd = .5
-
-    # from given hamiltonian generate time evolution operator "element" acting on two adjacent sites for a small time step
-    # for the odd sites also add the hamiltonians acting on every single site individually (but only for the odd ones, otherwise
-    # they'd be applied twice
-    element_even = expm(-1j * t * 1 / num_trotter_slices * trotter_factor_even * hamiltonian2)
-    element_odd = expm(-1j * t * 1 / num_trotter_slices * trotter_factor_odd * (hamiltonian1_2 + hamiltonian2))
-
-    mpo_elem_even = matrix_to_mpo(matrix=element_even, num_sites=2, site_shape=(dim, dim))
-    mpo_elem_odd = matrix_to_mpo(matrix=element_odd, num_sites=2, site_shape=(dim, dim))
-
-    # generate time evolution operator "fill" acting on the last site if num_sites is odd (and therefore this last site
-    # is not covered by mpo_elem_odd)
-    fill = expm(-1j * t * 1 / num_trotter_slices * trotter_factor_odd * hamiltonian1)
-    mpo_fill = matrix_to_mpo(matrix=fill, num_sites=1, site_shape=(dim, dim))
-
-    # get operators acting on odd sites
-    u_odd = mpo_on_odd(mpo_elem=mpo_elem_odd, mpo_fill=mpo_fill, num_sites=num_sites)
-
-    # get operators acting on even sites
-    u_even = mpo_on_even(mpo_elem=mpo_elem_even, num_sites=num_sites, dim=dim)
-
-    # construct the complete time evolution operator for the state for a small time step
-    if trotter_order == 1:
-        u = mp.dot(u_even, u_odd)
-    else:  # trotter_order == 2
-        u = mp.dot(mp.dot(u_odd, u_even), u_odd)
-
-    # and compress the product
-    u.compress(relerr=1e-15)
-    u = u / mp.norm(u)
+    h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
+    u_single, u_odd, u_even = _get_u_list(h_single, h_adjacent, t=t, num_trotter_slices=num_trotter_slices)
+    mpo_single, mpo_odd, mpo_even = _u_list_to_mpo(u_single, u_odd, u_even)
+    u_two_sites = mp.dot(mp.dot(mpo_odd, mpo_even), mpo_odd)
+    u = mp.dot(mp.dot(mpo_single, u_two_sites), mpo_single)
 
     return u
 
 
-def mpo_on_odd(mpo_elem, mpo_fill, num_sites):
+def _get_h_list(hs, num_sites):
     """
-    Creates the full MPO for the whole state from small MPOs acting on two adjacent sites,
-        only for those acting on odd sites
-
+    If only one Hamiltonian acting on every single site and one acting on every two adjacent sites is given,
+    transform it into the form returned. If not, check whether the lengths of the lists match the number of sites.
     Args:
-        mpo_elem (mpnum.MPArray): Elementary MPO acting on every pair of two adjacent sites
-        mpo_fill (mpnum.MPArray): The MPO acting on the last site if it is not covered by an mpo_elem (for states
-            with uneven numbers of sites)
-        num_sites (int): The number of sites of the state to be evolved
-        dim (int): The physical dimension of each of the legs of the state
+        hs (list): Hamiltonians as in evolve()
+        num_sites (int): Number of sites of the state to be evolved
 
     Returns:
-        mpnum.MPArray: The full MPO acting on the whole state
+         list: A list of Hamiltonians acting on the single sites
+            and a list of Hamiltonians acting on each two adjacent sites, like
+            [h1, h2, h3, ...], [h12, h23, h34, ...]
+
     """
+    if type(hs[0]) is not list:
+        hs = [list(repeat(hs[0], num_sites)), list(repeat(hs[1], num_sites - 1))]
+    elif (len(hs[0]) != num_sites) or (len(hs[1]) != num_sites - 1):
+        raise ValueError("Number of given Hamiltonians does not match number of sites")
 
-    odd = mp.chain(repeat(mpo_elem, int(num_sites / 2)))
-    if (num_sites % 2 == 1):
-        odd = mp.chain([odd, mpo_fill])
-    odd.compress(relerr=1e-15)
-    odd = odd / mp.norm(odd)
-
-    return odd
+    return hs[0], hs[1]
 
 
-def mpo_on_even(mpo_elem, num_sites, dim):
+def _get_u_list(h_single, h_adjacent, t, num_trotter_slices):
     """
-    Creates the full MPO for the whole state from small MPOs acting on two adjacent sites,
-        only for those acting on even sites
-
+    Calculate time evolution operators from Hamiltonians. The time evolution operators acting on single and on odd sites
+    contain a factor .5 for the second order Trotter.
     Args:
-        mpo_elem (mpnum.MPArray): Elementary MPO acting on every pair of two adjacent sites
-        num_sites (int): The number of sites of the state to be evolved
-        dim (int): The physical dimension of each of the legs of the state
+        h_single (list): The Hamiltonians acting on every single site
+        h_adjacent (list): The Hamiltonians acting on every two adjacent sites
+        t (float): The time for which the evolution should be computed
+        num_trotter_slices (int): The number of time steps or Trotter slices for the time evolution
 
     Returns:
-        mpnum.MPArray: The full MPO acting on the whole state
+        list: Lists of time evolution operators.
+            The first of those lists contains operators acting single sites. The second one the operators
+            acting on odd adjacent sites and the third one the ones acting on even adjacent sites,
+            like [u1, u2, ...] [u12, u34, ...], [u23, u45, ...]
+
     """
+    u_single = list(expm(-1j * t / num_trotter_slices / 2 * h) for h in h_single)
+    u_odd = list(expm(-1j * t / num_trotter_slices / 2 * h) for h in h_adjacent[::2])
+    u_even = list(expm(-1j * t / num_trotter_slices * h) for h in h_adjacent[1::2])
 
-    even = mp.chain([mpo_identity(dim=dim)] + list(repeat(mpo_elem, int(num_sites / 2 - .5))))
-    if (num_sites % 2 == 0):
-        even = mp.chain([even, mpo_identity(dim=dim)])
-    even.compress(relerr=1e-15)
-    even = even / mp.norm(even)
-
-    return even
+    return u_single, u_odd, u_even
 
 
-def mpo_identity(dim):
+def _u_list_to_mpo(u_single, u_odd, u_even):
     """
-    Creates an identity operator acting on a single site, thereby not changing it
-
+    Transform the matrices for time evolution to operators acting on the full state
     Args:
-        dim (int): Dimension of the physical legs
+        u_single (list): List of time evolution operators acting on single sites
+        u_odd (list): List of time evolution operators acting on odd adjacent sites
+        u_even (list): List of time evolution operators acting on even adjacent sites
 
     Returns:
-        mpnum.MPArray: Identity operator
+        mpnum.MPArray: The time evolution MPOs for the full state acting on individual sites,
+            acting on odd adjacent sites, acting on even adjacent sites.
+
     """
+    dims = [len(u_single[i]) for i in range(len(u_single))]
+    odd = mp.chain(
+        matrix_to_mpo(u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2]) for i, u in enumerate(u_odd))
+    even = mp.chain(
+        matrix_to_mpo(u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2]) for i, u in enumerate(u_even))
+    even = mp.chain([mp.eye(1, dims[0]), even])
+    if len(u_odd) > len(u_even):
+        even = mp.chain([even, mp.eye(1, dims[-1])])
+    elif len(u_even) == len(u_odd):
+        odd = mp.chain([odd, mp.eye(1, dims[-1])])
+    single = mp.chain(matrix_to_mpo(u, [[dims[i]] * 2]) for i, u in enumerate(u_single))
 
-    id = np.identity(dim)
-    mpo_id = mp.MPArray.from_array_global(id, ndims=2)
-    mpo_id.compress(relerr=1e-15)
-    mpo_id = mpo_id / mp.norm(mpo_id)
-
-    return mpo_id
+    return single, odd, even
 
 
-def matrix_to_mpo(matrix, num_sites, site_shape):
+def matrix_to_mpo(matrix, shape):
     """
-    Generates a MPO from a MxN matrix in global form (not tested if this really works on non-square matrices).
+    Generates a MPO from a NxN matrix in global form.
+    The number of legs per site must be the same for all sites.
     Args:
         matrix (numpy.ndarray): The matrix to be transformed to an MPO
-        num_sites (int): The number of sites the MPO should have
-        site_shape (tuple of int): The shape every single site of the resulting MPO should have, as used in mpnum.
-            For example a site with two legs each of dimension two would look like (2,2)
+        shape (list): The shape the single sites of the resulting MPO should have, as used in mpnum.
+            For example two sites with two legs each might look like [[3, 3], [2, 2]]
 
     Returns:
         mpnum.MPArray: The MPO representing the matrix
     """
-
+    num_legs = len(shape[0])
+    if not (np.array([len(shape[i]) for i in range(len(shape))]) == num_legs).all():
+        raise ValueError("Not all sites have the same number of physical legs")
     newShape = []
-    for j in sorted(site_shape):
-        newShape = newShape + [j] * num_sites
+    for i in range(num_legs):
+        for j in range(len(shape)):
+            newShape = newShape + [shape[j][i]]
     matrix = matrix.reshape(newShape)
-    mpo = mp.MPArray.from_array_global(matrix, ndims=len(site_shape))
-    mpo.compress(relerr=1e-15)
-    mpo = mpo / mp.norm(mpo)
+    mpo = mp.MPArray.from_array_global(matrix, ndims=num_legs)
+    _compress_losslessly(mpo, 'mpo')
 
     return mpo
+
+
+# Does this work, is state mutable and this operation in place?
+def _compress_losslessly(state, method):
+    """
+    Compress and normalize a state with a very high relative error. This is meant to get unnecessary ranks out of
+    a state without losing information.
+    Args:
+        state (mpnum.MPArray): The state to be compressed
+        method (str): Whether the state is MPO or PMPS
+
+    Returns:
+
+    """
+    state.compress(relerr=1e-20)
+    state = _normalize(state, method)
+
+
+# Does this work, is state mutable and this operation in place?
+def _normalize(state, method):
+    """
+    Normalize a state (hopefully in place)
+    Args:
+        state (mpnum.MPArray): The state to be normalized
+        method (str): Whether it is a MPO or PMPS state
+
+    Returns:
+
+    """
+    if method == 'pmps': state = state / mp.norm(state)
+    if method == 'mpo': state = state / mp.trace(state)
