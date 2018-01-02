@@ -1,63 +1,81 @@
 """
 Test to check the implemented functions in _tmps.py for the transverse Ising model
-
-Author:
-    Moritz Lange
 """
 
 from scipy.linalg import expm
+from scipy.linalg import sqrtm
 import numpy as np
 import mpnum as mp
 from tedopa import _tmps
 
-# NOT WORKING YET
 
 class TestTMPS(object):
-    precision = 1e-5  # required precision of the tMPS results
+    precision = 1e-7  # required precision of the tMPS results
 
-    def test_mpo_approach(self):
-
+    def test_mpo_trotter2(self):
         n = 4  # number of sites
-
-        values_matrix = []  # to store the results of the conventional matrix approach
-        values_mpo_trot1 = []  # to store the results of the calculation made using MPOs and Trotter of order 1
-        values_mpo_trot2 = []  # to store the results of the calculation made using MPOs and Trotter of order 2
 
         state = self.state(n=n)
         J = 1
         B = 1
+        times = [1, 2]
         hamiltonian = self.hamiltonian(n=n, J=J, B=B)
-        kroneckerSum = self.kroneckerSum(n=n)
 
-        # Convert the state density matrix into an MPO
-        reshaped_state = state.reshape([2] * 2 * n)
-        mpo_state = mp.MPArray.from_array_global(reshaped_state, ndims=2)
+        mpo_state = _tmps.matrix_to_mpo(state, [[2, 2]] * n)
 
-        num_trotter_steps = 100
+        num_trotter_slices = 100
 
-        # Calculate expected total spin of the system for 3 time steps
-        for t in np.linspace(0, 1, 2):
-            # Calculate the expectation using the conventional way with full matrix first
-            rho_t = self.exp(state=state, hamiltonian=hamiltonian, t=t)
-            values_matrix = values_matrix + [np.trace(rho_t.dot(kroneckerSum))]
+        times, evolved_states, errors1, errors2 = _tmps.evolve(mpo_state, hamiltonians=[B * self.sx(),
+                                                                                        J * np.kron(self.sz(),
+                                                                                                    self.sz())],
+                                                               ts=times, num_trotter_slices=num_trotter_slices,
+                                                               method='mpo', compr=dict(method='svd', relerr=1e-20),
+                                                               trotter_order=2)
 
-            # Then using MPOs and Trotter of order 1
-            evolved_state = _tmps.evolve(mpo_state, hamiltonians=[B * self.sx(), J * np.kron(self.sz(), self.sz())],
-                                         t=t, num_time_steps=num_trotter_steps, trotter_order=1, method='mpo')
-            rho_t = evolved_state.to_array_global()
-            rho_t = rho_t.reshape([2 ** n, 2 ** n])
-            values_mpo_trot1 = values_mpo_trot1 + [np.trace(rho_t.dot(kroneckerSum))]
+        rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
+        rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
 
-            # Then using MPOs and Trotter of order 2
-            evolved_state = _tmps.evolve(mpo_state, hamiltonians=[B * self.sx(), J * np.kron(self.sz(), self.sz())],
-                                         t=t, num_time_steps=num_trotter_steps, trotter_order=2, method='mpo')
-            rho_t = evolved_state.to_array_global()
-            rho_t = rho_t.reshape([2 ** n, 2 ** n])
-            values_mpo_trot2 = values_mpo_trot2 + [np.trace(rho_t.dot(kroneckerSum))]
+        rho_t_mpo_1 = evolved_states[0].to_array_global().reshape([2 ** n, 2 ** n])
+        rho_t_mpo_2 = evolved_states[1].to_array_global().reshape([2 ** n, 2 ** n])
 
-        # Now compare the results
-        assert np.allclose(values_matrix, values_mpo_trot1, atol=self.precision)
-        assert np.allclose(values_matrix, values_mpo_trot2, atol=self.precision)
+        fidelity_1 = np.trace(sqrtm(sqrtm(rho_t_arr_1).dot(rho_t_mpo_1).dot(sqrtm(rho_t_arr_1))))
+        fidelity_2 = np.trace(sqrtm(sqrtm(rho_t_arr_2).dot(rho_t_mpo_2).dot(sqrtm(rho_t_arr_2))))
+
+        assert np.isclose(1, fidelity_1, rtol=self.precision)
+        assert np.isclose(1, fidelity_2, rtol=self.precision)
+
+    def test_pmps_trotter_2(self):
+        n = 4  # number of sites
+
+        state = self.state(n=n)
+        J = 1
+        B = 1
+        times = [1, 2]
+        hamiltonian = self.hamiltonian(n=n, J=J, B=B)
+
+        mpo_state = _tmps.matrix_to_mpo(state, [[2, 2]] * n)
+        pmps_state = mp.mpo_to_pmps(mpo_state)
+
+        num_trotter_slices = 100
+
+        times, evolved_states, errors1, errors2 = _tmps.evolve(pmps_state, hamiltonians=[B * self.sx(),
+                                                                                         J * np.kron(self.sz(),
+                                                                                                     self.sz())],
+                                                               ts=times, num_trotter_slices=num_trotter_slices,
+                                                               method='pmps', compr=dict(method='svd', relerr=1e-20),
+                                                               trotter_order=2)
+
+        rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
+        rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
+
+        rho_t_pmps_1 = mp.pmps_to_mpo(evolved_states[0]).to_array_global().reshape([2 ** n, 2 ** n])
+        rho_t_pmps_2 = mp.pmps_to_mpo(evolved_states[1]).to_array_global().reshape([2 ** n, 2 ** n])
+
+        fidelity_1 = np.trace(sqrtm(sqrtm(rho_t_arr_1).dot(rho_t_pmps_1).dot(sqrtm(rho_t_arr_1))))
+        fidelity_2 = np.trace(sqrtm(sqrtm(rho_t_arr_2).dot(rho_t_pmps_2).dot(sqrtm(rho_t_arr_2))))
+
+        assert np.isclose(1, fidelity_1, rtol=self.precision)
+        assert np.isclose(1, fidelity_2, rtol=self.precision)
 
     ############# Pauli matrices ################
     def sx(self):
@@ -83,24 +101,6 @@ class TestTMPS(object):
         state = np.zeros((2 ** n, 2 ** n))
         state[0, 0] = 1
         return state
-
-    def kroneckerSum(self, n):
-        """
-        Generates the Kronecker sum of the sZ Pauli matrices for n sites
-
-        Args:
-            n (int): Number of sites
-
-        Returns:
-            numpy.ndarray: The Kronecker sum
-        """
-
-        pol_op = np.zeros((2 ** n, 2 ** n))
-        for i in range(n):
-            I1 = np.identity(2 ** i)
-            I2 = np.identity(2 ** (n - i - 1))
-            pol_op = pol_op + np.kron(np.kron(I1, self.sz()), I2)
-        return pol_op
 
     def hamiltonian(self, n=5, J=1, B=1):
         """

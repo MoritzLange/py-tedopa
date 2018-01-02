@@ -1,9 +1,6 @@
 """
 Test to see if the calculated recursion coefficients from _recursion_coefficients.py for some classical polynomials
 are actually the right ones.
-
-Author:
-    Moritz Lange
 """
 
 from tedopa import _recursion_coefficients
@@ -41,8 +38,8 @@ class TestCoefficients(object):
         alphas = [0] * n
         betas = self.generate_chebyshev_betas(n)
 
-        assert np.allclose(alphas, alphas_numeric, atol=self.precision)
-        assert np.allclose(betas, betas_numeric, atol=self.precision)
+        assert np.allclose(alphas, alphas_numeric, rtol=self.precision)
+        assert np.allclose(betas, betas_numeric, rtol=self.precision)
 
     def test_legendre(self):
         """Tests if the recursion coefficients calculated for the legendre polynomials are the right ones.
@@ -70,8 +67,8 @@ class TestCoefficients(object):
         alphas = [0] * n
         betas = self.generate_legendre_betas(n)
 
-        assert np.allclose(alphas, alphas_numeric, atol=self.precision)
-        assert np.allclose(betas, betas_numeric, atol=self.precision)
+        assert np.allclose(alphas, alphas_numeric, rtol=self.precision)
+        assert np.allclose(betas, betas_numeric, rtol=self.precision)
 
     def test_hermite(self):
         """Tests if the recursion coefficients calculated for the hermite polynomials are the right ones.
@@ -99,8 +96,8 @@ class TestCoefficients(object):
         alphas = [0] * n
         betas = self.generate_hermite_betas(n)
 
-        assert np.allclose(alphas, alphas_numeric, atol=self.precision)
-        assert np.allclose(betas, betas_numeric, atol=self.precision)
+        assert np.allclose(alphas, alphas_numeric, rtol=self.precision)
+        assert np.allclose(betas, betas_numeric, rtol=self.precision)
 
     def generate_hermite_betas(self, n=10):
         """

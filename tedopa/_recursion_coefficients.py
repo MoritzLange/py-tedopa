@@ -1,8 +1,5 @@
 """
 Functions to calculate recursion coefficients.
-
-Author:
-    Moritz Lange
 """
 
 import math

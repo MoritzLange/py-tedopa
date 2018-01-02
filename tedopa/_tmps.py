@@ -1,9 +1,6 @@
 """
 Functions to calculate the time evolution of an operator. This file contains functions which integrate the
 single site operators into the ones acting on odd adjacent sites.
-
-Author:
-    Moritz Lange
 """
 
 import mpnum as mp
@@ -12,7 +9,7 @@ from scipy.linalg import expm
 from itertools import repeat
 
 
-def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr):
+def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr, trotter_order=2):
     """
     Evolve a state using tMPS.
 
@@ -24,14 +21,15 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr):
             or a list containing a list of Hamiltonians acting on the single sites
             and a list of Hamiltonians acting on each two adjacent sites, like
             [[h1, h2, h3, ...], [h12, h23, h34, ...]]
-        ts (list of float): The times for which the evolution should be computed. The algorithm will calculate
+        ts (list of float): The times in seconds for which the evolution should be computed. The algorithm will calculate
             the evolution for the largest number in t and on the way there store the evolved states for smaller times.
             NB: Beware of memory overload since len(t) mpnum.MPArrays will be stored
         num_trotter_slices (int): The number of trotter slices for the largest t.
         method (str): Which method to use. Either 'mpo' or 'pmps'.
         compr (dict): Compression parameters for the Trotter steps
+        trotter_order (int): Order of trotter to be used. Currently only 2 is implemented
 
-    Returns:
+    Returns: (list of list)
         list: The list of times for which the density matrices have been computed
         list: The list of density matrices as MPO or PMPS as mpnum.MPArray, depending on the input "method"
         list: The errors due to compression during the procedure
@@ -40,7 +38,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr):
     # ToDo: See if normalization is in fact in place
     # ToDo: Maybe add support for hamiltonians depending on time (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
-    # ToDo: Implement tracking of errors
+    # ToDo: Implement tracking of errors properly
 
     _compress(state, method)
 
@@ -49,7 +47,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr):
 
     tau = _times_to_steps(ts, num_trotter_slices)
 
-    u = _trotter_slice(hamiltonians=hamiltonians, tau=tau, num_sites=len(state))
+    u = _trotter_slice(hamiltonians=hamiltonians, tau=tau, num_sites=len(state), trotter_order=trotter_order)
     _compress(u, method)
 
     return _time_evolution(state, u, ts, tau, method, compr)
@@ -118,7 +116,28 @@ def _times_to_steps(times, num_trotter_slices):
     return tau
 
 
-def _trotter_slice(hamiltonians, tau, num_sites):
+def _trotter_slice(hamiltonians, tau, num_sites, trotter_order):
+    """
+    Calculate the time evolution operator u for the respective trotter order for one trotter slice.
+
+    Args:
+        hamiltonians (list): List of two lists of Hamiltonians, the Hamiltonians in the first
+            acting on every single site, the Hamiltonians in the second acting on every pair of two adjacent sites
+        tau (float): As defined in _times_to_steps()
+        num_sites (int): Number of sites of the state to be evolved
+        trotter_order (int): Order of trotter to be used
+
+    Returns:
+        mpnum.MPArray: The time evolution operator u for one Trotter slice
+    """
+
+    if trotter_order == 2:
+        return _trotter_two(hamiltonians, tau, num_sites)
+    else:
+        raise ValueError("Trotter order " + str(trotter_order) + " is currently not implemented.")
+
+
+def _trotter_two(hamiltonians, tau, num_sites):
     """
     Calculate the time evolution operator u, comprising even and odd terms, for one Trotter slice
     and Trotter of order 2.
