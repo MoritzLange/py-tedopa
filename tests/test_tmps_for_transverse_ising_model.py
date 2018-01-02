@@ -6,7 +6,7 @@ from scipy.linalg import expm
 from scipy.linalg import sqrtm
 import numpy as np
 import mpnum as mp
-from tedopa import _tmps
+from tedopa import tmps
 
 
 class TestTMPS(object):
@@ -21,16 +21,16 @@ class TestTMPS(object):
         times = [1, 2]
         hamiltonian = self.hamiltonian(n=n, J=J, B=B)
 
-        mpo_state = _tmps.matrix_to_mpo(state, [[2, 2]] * n)
+        mpo_state = tmps.matrix_to_mpo(state, [[2, 2]] * n)
 
         num_trotter_slices = 100
 
-        times, evolved_states, errors1, errors2 = _tmps.evolve(mpo_state, hamiltonians=[B * self.sx(),
-                                                                                        J * np.kron(self.sz(),
-                                                                                                    self.sz())],
-                                                               ts=times, num_trotter_slices=num_trotter_slices,
-                                                               method='mpo', compr=dict(method='svd', relerr=1e-20),
-                                                               trotter_order=2)
+        times, evolved_states, errors1, errors2 = tmps.evolve(mpo_state, hamiltonians=[B * self.sx(),
+                                                                                       J * np.kron(self.sz(),
+                                                                                                   self.sz())],
+                                                              ts=times, num_trotter_slices=num_trotter_slices,
+                                                              method='mpo', compr=dict(method='svd', relerr=1e-20),
+                                                              trotter_order=2)
 
         rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
         rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
@@ -44,7 +44,7 @@ class TestTMPS(object):
         assert np.isclose(1, fidelity_1, rtol=self.precision)
         assert np.isclose(1, fidelity_2, rtol=self.precision)
 
-    def test_pmps_trotter_2(self):
+    def test_pmps_trotter2(self):
         n = 4  # number of sites
 
         state = self.state(n=n)
@@ -53,17 +53,50 @@ class TestTMPS(object):
         times = [1, 2]
         hamiltonian = self.hamiltonian(n=n, J=J, B=B)
 
-        mpo_state = _tmps.matrix_to_mpo(state, [[2, 2]] * n)
+        mpo_state = tmps.matrix_to_mpo(state, [[2, 2]] * n)
         pmps_state = mp.mpo_to_pmps(mpo_state)
 
         num_trotter_slices = 100
 
-        times, evolved_states, errors1, errors2 = _tmps.evolve(pmps_state, hamiltonians=[B * self.sx(),
-                                                                                         J * np.kron(self.sz(),
-                                                                                                     self.sz())],
-                                                               ts=times, num_trotter_slices=num_trotter_slices,
-                                                               method='pmps', compr=dict(method='svd', relerr=1e-20),
-                                                               trotter_order=2)
+        times, evolved_states, errors1, errors2 = tmps.evolve(pmps_state, hamiltonians=[B * self.sx(),
+                                                                                        J * np.kron(self.sz(),
+                                                                                                    self.sz())],
+                                                              ts=times, num_trotter_slices=num_trotter_slices,
+                                                              method='pmps', compr=dict(method='svd', relerr=1e-20),
+                                                              trotter_order=2)
+
+        rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
+        rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
+
+        rho_t_pmps_1 = mp.pmps_to_mpo(evolved_states[0]).to_array_global().reshape([2 ** n, 2 ** n])
+        rho_t_pmps_2 = mp.pmps_to_mpo(evolved_states[1]).to_array_global().reshape([2 ** n, 2 ** n])
+
+        fidelity_1 = np.trace(sqrtm(sqrtm(rho_t_arr_1).dot(rho_t_pmps_1).dot(sqrtm(rho_t_arr_1))))
+        fidelity_2 = np.trace(sqrtm(sqrtm(rho_t_arr_2).dot(rho_t_pmps_2).dot(sqrtm(rho_t_arr_2))))
+
+        assert np.isclose(1, fidelity_1, rtol=self.precision)
+        assert np.isclose(1, fidelity_2, rtol=self.precision)
+
+    def test_pmps_trotter4(self):
+        n = 4  # number of sites
+
+        state = self.state(n=n)
+        J = 1
+        B = 1
+        times = [1, 2]
+        hamiltonian = self.hamiltonian(n=n, J=J, B=B)
+
+        mpo_state = tmps.matrix_to_mpo(state, [[2, 2]] * n)
+        pmps_state = mp.mpo_to_pmps(mpo_state)
+
+        num_trotter_slices = 100
+
+        times, evolved_states, errors1, errors2 = tmps.evolve(pmps_state, hamiltonians=[B * self.sx(),
+                                                                                        J * np.kron(self.sz(),
+                                                                                                    self.sz())],
+                                                              ts=times, num_trotter_slices=num_trotter_slices,
+                                                              method='pmps', compr=dict(method='svd', relerr=1e-20),
+                                                              trotter_order=4)
 
         rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
         rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])

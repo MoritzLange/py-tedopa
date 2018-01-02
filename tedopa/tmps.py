@@ -27,7 +27,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr, trotter_o
         num_trotter_slices (int): The number of trotter slices for the largest t.
         method (str): Which method to use. Either 'mpo' or 'pmps'.
         compr (dict): Compression parameters for the Trotter steps
-        trotter_order (int): Order of trotter to be used. Currently only 2 is implemented
+        trotter_order (int): Order of trotter to be used. Currently only 2 and 4 are implemented
 
     Returns: (list of list)
         list: The list of times for which the density matrices have been computed
@@ -133,6 +133,8 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order):
 
     if trotter_order == 2:
         return _trotter_two(hamiltonians, tau, num_sites)
+    if trotter_order == 4:
+        return _trotter_four(hamiltonians, tau, num_sites)
     else:
         raise ValueError("Trotter order " + str(trotter_order) + " is currently not implemented.")
 
@@ -156,6 +158,34 @@ def _trotter_two(hamiltonians, tau, num_sites):
     dims, u_odd, u_even = _get_u_list(h_single, h_adjacent, tau=tau)
     u_odd, u_even = _u_list_to_mpo(dims, u_odd, u_even)
     u = mp.dot(mp.dot(u_odd, u_even), u_odd)
+    return u
+
+
+def _trotter_four(hamiltonians, tau, num_sites):
+    """
+    Calculate the time evolution operator u, comprising even and odd terms, for one Trotter slice
+    and Trotter of order 4.
+
+    Args:
+        hamiltonians (list): List of two lists of Hamiltonians, the Hamiltonians in the first
+            acting on every single site, the Hamiltonians in the second acting on every pair of two adjacent sites
+        tau (float): As defined in _times_to_steps()
+        num_sites (int): Number of sites of the state to be evolved
+
+    Returns:
+        mpnum.MPArray: The time evolution operator u for one Trotter slice
+    """
+
+    taus = [tau / (4 - 4 ** (1 / 3)), tau / (4 - 4 ** (1 / 3)), tau - 4 * tau / (4 - 4 ** (1 / 3))]
+
+    h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
+    u_lists = [_get_u_list(h_single, h_adjacent, tau=tau) for tau in taus]
+    u_mpos = [_u_list_to_mpo(*element) for element in u_lists]
+    u_parts = [mp.dot(mp.dot(element[0], element[1]), element[0]) for element in u_mpos]
+    u = mp.dot(mp.dot(u_parts[0], u_parts[1]), u_parts[2])
+    _compress(u, 'mpo')
+    u = mp.dot(u, u_parts[1])
+    u = mp.dot(u, u_parts[0])
     return u
 
 
