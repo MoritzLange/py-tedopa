@@ -3,9 +3,11 @@ Test to see if the calculated recursion coefficients from _recursion_coefficient
 are actually the right ones.
 """
 
-from tedopa import _recursion_coefficients
-import numpy as np
 import math
+
+import numpy as np
+
+from tedopa import _recursion_coefficients
 
 
 class TestCoefficients(object):
@@ -21,11 +23,12 @@ class TestCoefficients(object):
         # but keep in mind that recursionCoefficients does not take the weight function h^2 but J as an input
         lb = -1
         rb = 1
-        h_squared = lambda x: (1 - x ** 2) ** (-.5)
+
+        def h_squared(x): return (1 - x ** 2) ** (-.5)
         g = 1
 
         # Then calculate J from h^2 by adjusting the function and the boundaries
-        j = lambda x: (math.pi / g) * h_squared(x / g)
+        def j(x): return (math.pi / g) * h_squared(x / g)
         lb = lb * g
         rb = rb * g
 
@@ -50,11 +53,12 @@ class TestCoefficients(object):
         # but keep in mind that recursionCoefficients does not take the weight function h^2 but J as an input
         lb = -1
         rb = 1
-        h_squared = lambda x: 1
+
+        def h_squared(x): return 1
         g = 1
 
         # Then calculate J from h^2 by adjusting the function and the boundaries
-        j = lambda x: (math.pi / g) * h_squared(x / g)
+        def j(x): return (math.pi / g) * h_squared(x / g)
         lb = lb * g
         rb = rb * g
 
@@ -79,11 +83,12 @@ class TestCoefficients(object):
         # but keep in mind that recursionCoefficients does not take the weight function h^2 but J as an input
         lb = -np.inf
         rb = np.inf
-        h_squared = lambda x: np.exp(- x ** 2)
+
+        def h_squared(x): return np.exp(- x ** 2)
         g = 1
 
         # Then calculate J from h^2 by adjusting the function and the boundaries
-        j = lambda x: (math.pi / g) * h_squared(x / g)
+        def j(x): return (math.pi / g) * h_squared(x / g)
         lb = lb * g
         rb = rb * g
 

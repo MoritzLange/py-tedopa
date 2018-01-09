@@ -1,10 +1,10 @@
-from distutils.core import setup
+from setuptools import find_packages, setup
 
 setup(
-    name='tedopa',
+    name='py-tedopa',
     version='0.1.dev3',
-    author='Moritz Lange',
+    author='Moritz Lange, Ish Dhand',
     packages=['tedopa'],
-    author_email='moritz.lange@uni-ulm.de',
-    description='Tedopa implementation',
+    author_email='moritz.lange@uni-ulm.de, ishdhand@gmail.com',
+    description="Time evolving density matrix using orthogonal polynomials algorithm",
 )
