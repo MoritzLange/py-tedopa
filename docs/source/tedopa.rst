@@ -20,10 +20,10 @@ tedopa.tmps module
     :private-members:
 
 
-tedopa.recursion_coefficients module
+tedopa._recursion_coefficients module
 -------------------
 
-.. automodule:: tedopa.recursion_coefficients
+.. automodule:: tedopa._recursion_coefficients
     :members:
     :undoc-members:
     :show-inheritance:
