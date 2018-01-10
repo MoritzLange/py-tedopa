@@ -4,15 +4,14 @@ Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188
 """
 
 import numpy as np
-
 import mpnum as mp
 from tedopa import _recursion_coefficients as rc
 from tedopa import tmps
 
 
-def get_hamiltonian(h_loc, a, chain, j, domain, g=1):
+def tedopa(h_loc, a, chain, j, domain, g=1):
     """
-    Mapping the Hamiltonian of a system linearly coupled to a reservoir of bosonic modes to a 1D chain
+    Mapping the Hamiltonian of a system linearly coupled to a reservoir of bosonic modes to a 1D chain and performing time evolution
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian
         a (numpy.ndarray): Interaction operator defined as A_hat in the paper
@@ -32,16 +31,12 @@ def get_hamiltonian(h_loc, a, chain, j, domain, g=1):
     if len(a) != chain.shape[0][0]:
         raise ValueError("Dimension of 'a' must be the same as that of the first site of the chain.")
 
-    h_loc = tmps.matrix_to_mpo(h_loc, [[len(h_loc)] * 2])
-    dims_chain = [i[0] for i in chain.shape]
-    sum = _get_sum(a, chain, j, domain, g)
-    hamiltonian = mp.chain([h_loc, mp.eye(len(dims_chain), dims_chain)]) + mp.chain([mp.eye(h_loc.shape[0][0]), sum])
-    return tmps.compress_losslessly(hamiltonian, 'mpo')
+    singlesite_ops, twosite_ops = _get_operators(a, chain, j, domain,g)
 
 
-def _get_sum(a, chain, j, domain, g):
+def _get_operators(a, chain, j, domain, g):
     """
-    Get the second and last term, i.e. everything except the local Hamiltonian, from eq.(16) in the paper
+    Get the operators acting on the interaction and environment part of the chain
     Args:
         a (numpy.ndarray): Interaction operator defined as A_hat in the paper
         chain (mpnum.MPArray): The chain on which the hamiltonian is to be applied
@@ -50,19 +45,48 @@ def _get_sum(a, chain, j, domain, g):
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
 
     Returns:
-        mpnum.MPArray: The sum, i.e. the last term of eq. (16) in the paper
+        list[list[numpy.ndarray]]: Lists of single-site and adjacent-site operators
     """
-    a = tmps.matrix_to_mpo(a, [[len(a)] * 2])
-    omegas, ts, c0 = _get_parameters(len_chain=len(chain), j=j, domain=domain, g=g)
+    params = _get_parameters(len_chain=len(chain), j=j, domain=domain, g=g)
     dims_chain = [i[0] for i in chain.shape]
     bs = [_get_annihilation_op(dim) for dim in dims_chain]
     b_daggers = [b.T for b in bs]
-    singlesite_ops = [omegas[i] * mp.dot(b_daggers[i], bs[i]) for i in range(len(bs))]
-    singlesite_ops[0] = singlesite_ops[0] + c0 * mp.dot(a, bs[0] + b_daggers[0])
-    twosite_ops = [ts[i] * (
-        mp.chain([bs[i], b_daggers[i + 1]]) + mp.chain([b_daggers[i], bs[i + 1]])) for i in range(len(bs) - 1)]
+    return _get_singlesite_ops(a, params, bs, b_daggers), _get_twosite_ops(params, bs, b_daggers)
 
-    return mp.local_sum(singlesite_ops) + mp.local_sum(twosite_ops)
+
+def _get_singlesite_ops(a, params, bs, b_daggers):
+    """
+        Function to generate a list of the operators acting on every two adjacent sites
+        Args:
+            a (numpy.ndarray): Interaction operator provided by the user
+            params (list): Parameters as returned by _get_parameters()
+            bs (list): The list of annihilation operators acting on each site of the chain
+            b_daggers (list): The list of creation operators acting on each site of the chain
+
+        Returns:
+            list: List of operators acting on every two adjacent sites
+        """
+    omegas, ts, c0 = params
+    singlesite_ops = [omegas[i] * b_daggers[i].dot(bs[i]) for i in range(len(bs))]
+    singlesite_ops[0] = singlesite_ops[0] + c0 * a.dot(bs[0] + b_daggers[0])
+    return singlesite_ops
+
+
+def _get_twosite_ops(params, bs, b_daggers):
+    """
+    Function to generate a list of the operators acting on every two adjacent sites
+    Args:
+        params (list): Parameters as returned by _get_parameters()
+        bs (list): The list of annihilation operators acting on each site of the chain
+        b_daggers (list): The list of creation operators acting on each site of the chain
+
+    Returns:
+        list: List of operators acting on every two adjacent sites
+    """
+    omegas, ts, c0 = params
+    twosite_ops = [ts[i] * (
+        np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for i in range(len(bs) - 1)]
+    return twosite_ops
 
 
 def _get_parameters(len_chain, j, domain, g):
@@ -91,9 +115,9 @@ def _get_annihilation_op(dim):
         dim (int): Dimension of the site it should act on
 
     Returns:
-        mpnum.MPArray: The creation operator
+        numpy.ndarray: The annihilation operator
     """
     op = np.zeros((dim, dim))
     for i in range(dim - 1):
         op[i, i + 1] = np.sqrt(i + 1)
-    return tmps.matrix_to_mpo(op, [[dim]] * 2)
+    return op

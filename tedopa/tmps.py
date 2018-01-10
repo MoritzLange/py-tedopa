@@ -284,10 +284,10 @@ def _u_list_to_mpo(dims, u_odd, u_even):
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2])
-        for i, u in enumerate(u_odd))
+                   for i, u in enumerate(u_odd))
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2])
-        for i, u in enumerate(u_even))
+                    for i, u in enumerate(u_even))
     even = mp.chain([mp.eye(1, dims[0]), even])
     if len(u_odd) > len(u_even):
         even = mp.chain([even, mp.eye(1, dims[-1])])
@@ -321,12 +321,18 @@ def matrix_to_mpo(matrix, shape):
     matrix = matrix.reshape(newShape)
     mpo = mp.MPArray.from_array_global(matrix, ndims=num_legs)
 <<<<<<< HEAD
+<<<<<<< HEAD
     _compress(mpo, 'mpo')
 =======
     mpo = compress_losslessly(mpo, 'mpo')
 
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
+=======
+    mpo = compress_losslessly(mpo, 'mpo')
+>>>>>>> 983b6c2... Rewrote tedopa/tedopa.py
     return mpo
+
+
 # Does this work, is state mutable and this operation in place?
 
 
@@ -375,12 +381,18 @@ def normalize(state, method):
         state (mpnum.MPArray): The state to be normalized
         method (str): Whether it is a MPO or PMPS state
 <<<<<<< HEAD
+<<<<<<< HEAD
     Returns: nothing
+=======
+    Returns:
+        mpnum.MPArray: The normalized state
+>>>>>>> 983b6c2... Rewrote tedopa/tedopa.py
     """
     if method == 'pmps':
         state = state / mp.norm(state)
     if method == 'mpo':
         state = state / mp.trace(state)
+    return state
 
 
 def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr, trotter_order=2):
@@ -423,7 +435,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr, trotter_o
     # ToDo: Maybe add support for hamiltonians depending on time (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
     # ToDo: Implement tracking of errors properly
-    _compress(state, method)
+    state = compress_losslessly(state, method)
     if len(state) < 3:
         raise ValueError("State has too few sites")
     if (np.array(ts) == 0).all():
@@ -432,7 +444,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr, trotter_o
     tau = _times_to_steps(ts, num_trotter_slices)
     u = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                        num_sites=len(state), trotter_order=trotter_order)
-    _compress(u, method)
+    u = compress_losslessly(u, method)
     return _time_evolution(state, u, ts, tau, method, compr)
 
 
@@ -472,7 +484,7 @@ def _time_evolution(state, u, ts, tau, method, compr):
         state = mp.dot(u, state)
         if method == 'mpo':
             state = mp.dot(state, u_dagger)
-        _normalize(state, method)
+        state = normalize(state, method)
         accumulated_overlap *= state.compress(**compr)
         accumulated_trotter_error += tau ** 3
         if i + 1 in ts:
