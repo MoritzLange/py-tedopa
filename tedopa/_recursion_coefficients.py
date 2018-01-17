@@ -23,7 +23,7 @@ def recursionCoefficients(n=2, lb=-1, rb=1, j=lambda x: 1., g=1, ncap=60000):
         Left bound of interval on which J is defined (Default value = -1)
       rb (float):
         Right bound of interval on which J is defined (Default value = 1)
-      j (float):
+      j (types.LambdaType):
         J(omega) defined on above interval (Default value = lambda x: 1.)
       ncap (int):
         Number internally used by py-orthpol. Must be >n and <=60000. Between
@@ -31,7 +31,9 @@ def recursionCoefficients(n=2, lb=-1, rb=1, j=lambda x: 1., g=1, ncap=60000):
         accuracy and the longer the execution time. Defaults to 60000.
     Returns:
         list:
-            A list with two items: (i) alphas, which is one half of the n first recursion coefficients and (ii) betas, which is other half of the n first recursion coefficients
+            A list with two items: (i) alphas, which is one half of the n first
+            recursion coefficients and (ii) betas, which is other half of the
+            n first recursion coefficients
     """
     # It would also be possible to give lists of J(omega) and intervals as input
     # if the py-orthpol package was changed accordingly, adding the quadrature
@@ -99,6 +101,7 @@ def _j_to_hsquared(func, lb, rb, g):
             for h^2
     """
 <<<<<<< HEAD
+<<<<<<< HEAD
     def h_squared(x): return func(g * x) * g / math.pi
 =======
     Transform J(omega) to h^2(omega) which will be the weight function for the generated polynomials
@@ -115,6 +118,11 @@ def _j_to_hsquared(func, lb, rb, g):
     h_squared = lambda x: func(g * x) * g / math.pi
 
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
+=======
+
+    def h_squared(x): return func(g * x) * g / math.pi
+
+>>>>>>> 206decc... New untested TEDOPA implementation
     # change the boundaries of the interval accordingly
     lb = lb / g
     rb = rb / g

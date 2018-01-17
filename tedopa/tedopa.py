@@ -9,100 +9,194 @@ from tedopa import _recursion_coefficients as rc
 from tedopa import tmps
 
 
-def tedopa(h_loc, a, chain, j, domain, g=1):
+# ToDo: Check if different g actually make a difference
+# ToDo: Let the user provide the required compression
+
+def tedopa1(h_loc, a, state, j, domain, ts, g):
     """
-    Mapping the Hamiltonian of a system linearly coupled to a reservoir of bosonic modes to a 1D chain and performing time evolution
+    Mapping the Hamiltonian of a system composed of one site, linearly coupled
+    to a reservoir of bosonic modes, to a 1D chain and performing time evolution
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian
         a (numpy.ndarray): Interaction operator defined as A_hat in the paper
-        chain (mpnum.MPArray): The chain on which the hamiltonian is to be applied
+        state (mpnum.MPArray): The state of the system which is to be
+            evolved. In PMPS form.
         j (types.LambdaType): spectral function J(omega) as defined in the paper
-        domain (list[float]): Domain on which j is defined, for example [0, np.inf]
+        domain (list[float]): Domain on which j is defined,
+            for example [0, np.inf]
+        ts (list of float): The times in seconds for which the evolution should
+            be computed.
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
 
     Returns:
-        mpnum.MPArray: The full system Hamiltonian mapped to a chain
+        mpnum.MPArray: The result
     """
-
-    # ToDo: Check if different g actually make a difference
-
+    state_shape = state.shape
     if len(domain) != 2:
         raise ValueError("Domain needs to be of the form [x1, x2]")
-    if len(a) != chain.shape[0][0]:
-        raise ValueError("Dimension of 'a' must be the same as that of the first site of the chain.")
+    if len(a) != state_shape[0][0]:
+        raise ValueError(
+            "Dimension of 'a' must be the same as that of the \
+            first site of the chain.")
+    if len(state_shape) < 2:
+        raise ValueError("The provided state has no chain representing "
+                         "the mapped environment")
 
-    singlesite_ops, twosite_ops = _get_operators(a, chain, j, domain,g)
+    singlesite_ops, twosite_ops = _get_operators(h_loc, a, state_shape,
+                                                 j, domain, g)
+    print("Proceeding to tmps...")
+    # put max ranks for compression
+    times, states, compr_errors, trot_errors = tmps.evolve(
+        state=state,
+        hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
+        num_trotter_slices=100, method='pmps',
+        compr=dict(method='svd', rank=3, relerr=1e-6), trotter_order=2)
+    return times, states
 
 
-def _get_operators(a, chain, j, domain, g):
+def tedopa2(h_loc, a, state, sys_position, js, domains, ts, gs=(1, 1)):
     """
-    Get the operators acting on the interaction and environment part of the chain
+    Mapping the Hamiltonian of a system composed of two sites, each linearly
+    coupled to a reservoir of bosonic modes, to a 1D chain and performing
+    time evolution
     Args:
+        h_loc (numpy.ndarray): Local Hamiltonian
+        a list[numpy.ndarray]: The two interaction operators defined as
+            A_hat in the paper
+        state (mpnum.MPArray): The state of the system which is to be
+            evolved. In PMPS form.
+        sys_position (int): Which index, in the chain representing the state, is
+            the position of the first site of the system (first would be 1,
+            not 0). E.g. 3 if the chain sites are
+            environment-environment-system-system-environment-environment
+        js list[types.LambdaType]: spectral functions J(omega) for both
+            environments as defined in the paper
+        domains list[list[float]]: Domains on which the js is defined,
+            for example [[0, np.inf],[0,1]]
+        ts (list of float): The times in seconds for which the evolution should
+            be computed.
+        gs list[float]: Constant g, assuming that for J(omega) it is
+            g(omega) = g * omega
+
+    Returns:
+        mpnum.MPArray: The result
+    """
+    state_shape = state.shape
+    # ToDo: Implement some checks, like above
+    left_ops = _get_operators(np.zeros([state_shape[sys_position - 1][0]] * 2),
+                              a[0], list(reversed(state_shape[:sys_position:])),
+                              js[0], domains[0], gs[0])
+    singlesite_ops_left, twosite_ops_left = (list(reversed(i)) for i in
+                                             left_ops)
+    singlesite_ops_right, twosite_ops_right = \
+        _get_operators(np.zeros([state_shape[sys_position][0]] * 2), a[1],
+                       state_shape[sys_position::], js[1], domains[1], gs[1])
+    singlesite_ops = singlesite_ops_left + singlesite_ops_right
+    twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
+
+    print("Proceeding to tmps...")
+    # put max ranks for compression
+    times, states, compr_errors, trot_errors = tmps.evolve(
+        state=state,
+        hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
+        num_trotter_slices=100, method='pmps',
+        compr=dict(method='svd', rank=3, relerr=1e-6), trotter_order=4)
+    return times, states
+
+
+def _get_operators(h_loc, a, state_shape, j, domain, g):
+    """
+    Get the operators acting on the chain
+    Args:
+        h_loc (numpy.ndarray): Local Hamiltonian
         a (numpy.ndarray): Interaction operator defined as A_hat in the paper
-        chain (mpnum.MPArray): The chain on which the hamiltonian is to be applied
+        state_shape list[list[int]]: The shape of the chain on which the
+            hamiltonian is to be applied
         j (types.LambdaType): spectral function J(omega) as defined in the paper
-        domain (list[float]): Domain on which j is defined, for example [0, np.inf]
+        domain (list[float]): Domain on which j is defined,
+            for example [0, np.inf]
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
 
     Returns:
-        list[list[numpy.ndarray]]: Lists of single-site and adjacent-site operators
+        list[list[numpy.ndarray]]: Lists of single-site and
+            adjacent-site operators
     """
-    params = _get_parameters(len_chain=len(chain), j=j, domain=domain, g=g)
-    dims_chain = [i[0] for i in chain.shape]
-    bs = [_get_annihilation_op(dim) for dim in dims_chain]
+    params = _get_parameters(
+        n=len(state_shape), j=j, domain=domain, g=g)
+    dims_chain = [i[0] for i in state_shape]
+    bs = [_get_annihilation_op(dim) for dim in dims_chain[1::]]
     b_daggers = [b.T for b in bs]
-    return _get_singlesite_ops(a, params, bs, b_daggers), _get_twosite_ops(params, bs, b_daggers)
+    return _get_singlesite_ops(h_loc, params, bs, b_daggers), \
+           _get_twosite_ops(a, params, bs, b_daggers)
 
 
-def _get_singlesite_ops(a, params, bs, b_daggers):
+def _get_singlesite_ops(h_loc, params, bs, b_daggers):
     """
-        Function to generate a list of the operators acting on every two adjacent sites
-        Args:
-            a (numpy.ndarray): Interaction operator provided by the user
-            params (list): Parameters as returned by _get_parameters()
-            bs (list): The list of annihilation operators acting on each site of the chain
-            b_daggers (list): The list of creation operators acting on each site of the chain
+    Function to generate a list of the operators acting on every
+    single site
+    Args:
+        h_loc (numpy.ndarray): Local Hamiltonian
+        params (list): Parameters as returned by _get_parameters()
+        bs (list): The list of annihilation operators acting on each site
+            of the chain
+        b_daggers (list): The list of creation operators acting on each site
+            of the chain
 
-        Returns:
-            list: List of operators acting on every two adjacent sites
-        """
+    Returns:
+        list: List of operators acting on every single site
+    """
     omegas, ts, c0 = params
-    singlesite_ops = [omegas[i] * b_daggers[i].dot(bs[i]) for i in range(len(bs))]
-    singlesite_ops[0] = singlesite_ops[0] + c0 * a.dot(bs[0] + b_daggers[0])
+    singlesite_ops = [omegas[i]
+                      * b_daggers[i].dot(bs[i]) for i in range(len(bs))]
+    singlesite_ops = [h_loc] + singlesite_ops
+
     return singlesite_ops
 
 
-def _get_twosite_ops(params, bs, b_daggers):
+def _get_twosite_ops(a, params, bs, b_daggers):
     """
-    Function to generate a list of the operators acting on every two adjacent sites
+    Function to generate a list of the operators acting on every
+    two adjacent sites
     Args:
+        a (numpy.ndarray): Interaction operator provided by the user
         params (list): Parameters as returned by _get_parameters()
-        bs (list): The list of annihilation operators acting on each site of the chain
-        b_daggers (list): The list of creation operators acting on each site of the chain
+        bs (list): The list of annihilation operators acting on each site
+            of the chain
+        b_daggers (list): The list of creation operators acting on each site
+            of the chain
 
     Returns:
         list: List of operators acting on every two adjacent sites
     """
     omegas, ts, c0 = params
     twosite_ops = [ts[i] * (
-        np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for i in range(len(bs) - 1)]
+        np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for
+                   i in range(len(bs) - 1)]
+    twosite_ops = [c0 * np.kron(a, bs[0] + b_daggers[0])] + twosite_ops
+
     return twosite_ops
 
 
-def _get_parameters(len_chain, j, domain, g):
+def _get_parameters(n, j, domain, g):
     """
-    Calculate the parameters needed for mapping the Hamiltonian to 1D chain
+    Calculate the parameters needed for mapping the Hamiltonian to a 1D chain
     Args:
-        len_chain (int): Length of the chain = number of recursion coefficients required
+        n (int): Number of recursion coefficients required
+            (rc.recursionCoefficients() actually returns one more)
         j (types.LambdaType): spectral function J(omega) as defined in the paper
-        domain (list[float]): Domain on which j is defined, for example [0, np.inf]
+        domain (list[float]): Domain on which j is defined,
+            for example [0, np.inf]
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
 
     Returns:
-        list[list[float], list[float], float]: omegas, ts, c0 as defined in the paper
+        list[list[float], list[float], float]: omegas, ts, c0
+            as defined in the paper
     """
-    alphas, betas = rc.recursionCoefficients(len_chain, lb=domain[0], rb=domain[1], j=j, g=g)
-    omegas = g * np.array(alphas)[:-1:]
+    print("Calculating recursion coefficients...")
+    alphas, betas = rc.recursionCoefficients(n, lb=domain[0],
+                                             rb=domain[1], j=j, g=g, ncap=10000)
+    print("Done.")
+    omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
     c0 = np.sqrt(betas[0])
     return omegas, ts, c0
