@@ -106,26 +106,26 @@ def _time_evolution(state, u, ts, tau, method, compr):
 
 def _times_to_steps(times, num_trotter_slices):
     """
-    ### NB: THIS FUNCTION MODIFIES times IN PLACE DESPITE RETURNING A VALUE! ###
-    Convert the given times in evolve(), for which a state is requested, into
-    steps (in place) and return tau, which is the maximal time from times
-    divided by num_trotter_slices
+    Calculate the respective Trotter steps for the given times for which
+    evolution should be computed.
+    If times=[10, 25, 30] and num_trotter_slices was 100, then the result
+    would be times=[33, 83, 100]
     Args:
         times (list of float):
             The times for which the evolution should be computed
         num_trotter_slices (int):
             The number of time steps or Trotter slices for the time evolution
     Returns:
-        (float):
-            maximal t / num_trotter_slices
+        tuple[list[int], float]:
+            times, tau = maximal t / num_trotter_slices
     """
     times.sort()
     tau = times[-1] / num_trotter_slices
     times[:] = [int(round(t / tau)) for t in times]
-    return tau
+    return times, tau
 
 
-def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, maxranks):
+def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
     """
     Calculate the time evolution operator u for the respective trotter order for
     one trotter slice.
@@ -140,22 +140,23 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, maxranks):
             Number of sites of the state to be evolved
         trotter_order (int):
             Order of trotter to be used
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
     Returns:
         mpnum.MPArray:
             The time evolution operator u for one Trotter slice
     """
     if trotter_order == 2:
-        return _trotter_two(hamiltonians, tau, num_sites, maxranks)
+        return _trotter_two(hamiltonians, tau, num_sites, compr)
     if trotter_order == 4:
-        return _trotter_four(hamiltonians, tau, num_sites, maxranks)
+        return _trotter_four(hamiltonians, tau, num_sites, compr)
     else:
         raise ValueError("Trotter order " + str(trotter_order) +
                          " is currently not implemented.")
 
 
-def _trotter_two(hamiltonians, tau, num_sites, maxranks):
+def _trotter_two(hamiltonians, tau, num_sites, compr):
     """
     Calculate the time evolution operator u, comprising even and odd terms, for
     one Trotter slice and Trotter of order 2.
@@ -168,22 +169,23 @@ def _trotter_two(hamiltonians, tau, num_sites, maxranks):
             As defined in _times_to_steps()
         num_sites (int):
             Number of sites of the state to be evolved
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
     Returns:
         mpnum.MPArray:
             The time evolution operator u for one Trotter slice
     """
     h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
     dims, u_odd, u_even = _get_u_list(h_single, h_adjacent, tau=tau)
-    u_odd, u_even = _u_list_to_mpo(dims, u_odd, u_even, maxranks)
+    u_odd, u_even = _u_list_to_mpo(dims, u_odd, u_even, compr)
     u = mp.dot(u_odd, u_even)
-    u = _compress(u, 'mpo', maxranks)
+    u = _compress(u, 'mpo', compr)
     u = mp.dot(u, u_odd)
     return u
 
 
-def _trotter_four(hamiltonians, tau, num_sites, maxranks):
+def _trotter_four(hamiltonians, tau, num_sites, compr):
     """
     Calculate the time evolution operator u, comprising even and odd terms, for
     one Trotter slice and Trotter of order 4.
@@ -194,8 +196,9 @@ def _trotter_four(hamiltonians, tau, num_sites, maxranks):
             on every pair of two adjacent sites
         tau (float): As defined in _times_to_steps()
         num_sites (int): Number of sites of the state to be evolved
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
     Returns:
         mpnum.MPArray:
             The time evolution operator u for one Trotter slice
@@ -204,14 +207,16 @@ def _trotter_four(hamiltonians, tau, num_sites, maxranks):
             tau - 4 * tau / (4 - 4 ** (1 / 3))]
     h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
     u_lists = [_get_u_list(h_single, h_adjacent, tau=tau) for tau in taus]
-    u_mpos = [_u_list_to_mpo(*element, [maxranks]) for element in u_lists]
+    u_mpos = [_u_list_to_mpo(*element, compr=compr) for element in
+              u_lists]
     u_parts = [mp.dot(mp.dot(element[0], element[1]), element[0])
                for element in u_mpos]
-    u_parts = [_compress(u, 'mpo', maxranks) for u in u_parts]
+    u_parts = [_compress(u, 'mpo', compr) for u in u_parts]
     u = mp.dot(u_parts[0], u_parts[1])
     for i in range(2, -1, -1):
-        u = _compress(u, 'mpo', maxranks)
+        u = _compress(u, 'mpo', compr)
         u = mp.dot(u, u_parts[i])
+    print("donewithT4")
     return u
 
 
@@ -272,7 +277,7 @@ def _get_u_list(h_single, h_adjacent, tau):
     return dims, u_odd, u_even
 
 
-def _u_list_to_mpo(dims, u_odd, u_even, maxranks):
+def _u_list_to_mpo(dims, u_odd, u_even, compr):
     """
     Transforms the matrices for time evolution to operators acting on the full
     state
@@ -283,33 +288,33 @@ def _u_list_to_mpo(dims, u_odd, u_even, maxranks):
             List of time evolution operators acting on odd adjacent sites
         u_even (list):
             List of time evolution operators acting on even adjacent sites
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
     Returns:
         (list):
             A list of two mparrays. (i) The time evolution MPOs for the full
             state acting on odd adjacent sites (ii) The time evolution MPOs for
             the full state acting on even adjacent sites
     """
-    maxranks = 20
     if len(dims) % 2 == 1:
         last_h = u_odd[-1]
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
-        u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], maxranks)
+        u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
                    for i, u in enumerate(u_odd))
     even = mp.chain(matrix_to_mpo(
-        u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], maxranks)
+        u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
                     for i, u in enumerate(u_even))
     even = mp.chain([mp.eye(1, dims[0]), even])
     if len(u_odd) > len(u_even):
         even = mp.chain([even, mp.eye(1, dims[-1])])
     elif len(u_even) == len(u_odd):
-        odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], maxranks)])
+        odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
     return odd, even
 
 
-def matrix_to_mpo(matrix, shape, maxranks):
+def matrix_to_mpo(matrix, shape, compr=None):
     """
     Generates a MPO from a NxN matrix in global form (probably also works for
     MxN). The number of legs per site must be the same for all sites.
@@ -320,16 +325,17 @@ def matrix_to_mpo(matrix, shape, maxranks):
             The shape the single sites of the resulting MPO should have, as used
             in mpnum. For example three sites with two legs each might look like
             [[3, 3], [2, 2], [2, 2]]
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
     Returns:
         mpnum.MPArray:
             The MPO representing the matrix
     """
+    if compr == None: compr = dict(method='svd', relerr=1e-6)
     num_legs = len(shape[0])
-    if not (
-                np.array([len(shape[i]) for i in
-                          range(len(shape))]) == num_legs).all():
+    if not (np.array([len(shape[i]) for i in
+                      range(len(shape))]) == num_legs).all():
         raise ValueError("Not all sites have the same number of physical legs")
     newShape = []
     for i in range(num_legs):
@@ -337,6 +343,7 @@ def matrix_to_mpo(matrix, shape, maxranks):
             newShape = newShape + [shape[j][i]]
     matrix = matrix.reshape(newShape)
     mpo = mp.MPArray.from_array_global(matrix, ndims=num_legs)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -351,6 +358,9 @@ def matrix_to_mpo(matrix, shape, maxranks):
 =======
     mpo = _compress(mpo, 'mpo', maxranks)
 >>>>>>> 206decc... New untested TEDOPA implementation
+=======
+    mpo = _compress(mpo, 'mpo', compr)
+>>>>>>> 708c0ab... Minor improvements to code and documentation
     return mpo
 
 
@@ -362,11 +372,15 @@ def _compress(state, method):
 =======
 # Does this work, is state mutable and this operation in place?
 <<<<<<< HEAD
+<<<<<<< HEAD
 def compress_losslessly(state, method):
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
 =======
 def _compress(state, method, maxranks):
 >>>>>>> 206decc... New untested TEDOPA implementation
+=======
+def _compress(state, method, compr):
+>>>>>>> 708c0ab... Minor improvements to code and documentation
     """
     Compress and normalize a state with a very small relative error. This is
     meant to get unnecessary ranks out of a state without losing information.
@@ -388,13 +402,14 @@ def _normalize(state, method):
 =======
         state (mpnum.MPArray): The state to be compressed
         method (str): Whether the state is MPO or PMPS
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
 
     Returns:
         mpnum.MPArray: The compressed state
     """
-    state.compress(relerr=1e-14, rank=maxranks)
+    state.compress(**compr)
     state = normalize(state, method)
     return state
 
@@ -422,14 +437,14 @@ def normalize(state, method):
     return state
 
 
-def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr,
-           trotter_order=2, maxranks=20):
+def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
+           trotter_order, compr):
     """
     Evolve a state using tMPS.
     Args:
         state (mpnum.MPArray):
             The state to be evolved in time(the density matrix, not state
-            vector). The state has to be an MPO or PMPS, depending on w hich
+            vector). The state has to be an MPO or PMPS, depending on which
             method is chosen
         hamiltonians (list):
             Either a list containing the Hamiltonian acting on every single site
@@ -439,23 +454,23 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr,
             sites, like [[h1, h2, h3, ...], [h12, h23, h34, ...]]
         ts (list of float):
             The times in seconds for which the evolution should be computed. The
-            algorithm will calculate the evolution for the largest number in t
-            and on the way there store the evolved states for smaller times. NB:
-            Beware of memory overload since len(t) mpnum.MPArrays will be stored
-        num_trotter_slices (int):
-            The number of trotter slices for the largest t.
+            algorithm will calculate the evolution, with the given number of
+            Trotter steps, for the largest number in t and on the way there
+            store the evolved states for smaller times.
+            NB: Beware of memory overload since len(t)
+                mpnum.MPArrays will be stored
+        num_trotter_slices (int): Number of Trotter slices to be used for the
+            largest t in ts.
         method (str):
             Which method to use. Either 'mpo' or 'pmps'.
-        compr (dict):
-            Compression parameters for the Trotter steps
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter
         trotter_order (int):
             Order of trotter to be used. Currently only 2 and 4
             are implemented
-        maxranks (int): Maximal number of ranks allowed during the
-            calculations (if too high the program might eat all your memory)
-            (this number is only for compression in the code to avoid too big
-            states. For the Trotter algorithm the ranks given with compr are
-            used)
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
     Returns:
         (list):
             A list of four items: (i) The list of times for which the density
@@ -469,21 +484,21 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, compr,
     # ToDo:     (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
     # ToDo: Implement tracking of errors properly
-    state = _compress(state, method, maxranks)
+    state = _compress(state, method, compr)
     if len(state) < 3:
         raise ValueError("State has too few sites")
     if (np.array(ts) == 0).all():
         raise ValueError(
             "No time evolution requested by the user. Check your input 't'")
-    tau = _times_to_steps(ts, num_trotter_slices)
+    ts, tau = _times_to_steps(ts, num_trotter_slices)
     u = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                        num_sites=len(state), trotter_order=trotter_order,
-                       maxranks=maxranks)
-    u = _compress(u, 'mpo', maxranks)
-    return _time_evolution(state, u, ts, tau, method, compr)
+                       compr=compr)
+    u = _compress(u, 'mpo', compr)
+    return _time_evolution(state, u, ts, tau, method, trotter_compr)
 
 
-def _time_evolution(state, u, ts, tau, method, compr):
+def _time_evolution(state, u, ts, tau, method, trotter_compr):
     """
     Do the actual time evolution
     Args:
@@ -497,8 +512,8 @@ def _time_evolution(state, u, ts, tau, method, compr):
             As defined in _times_to_steps()
         method (str):
             Method to use as defined in evolve()
-        compr (dict):
-            Compression parameters for the Trotter steps
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter
     Returns:
         (list):
             A list with four items: (i)The list of times for which the density
@@ -521,7 +536,7 @@ def _time_evolution(state, u, ts, tau, method, compr):
         if method == 'mpo':
             state = mp.dot(state, u_dagger)
         state = normalize(state, method)
-        accumulated_overlap *= state.compress(**compr)
+        accumulated_overlap *= state.compress(**trotter_compr)
         accumulated_trotter_error += tau ** 3
         if i + 1 in ts:
             times.append(tau * (i + 1))

@@ -12,24 +12,46 @@ from tedopa import tmps
 # ToDo: Check if different g actually make a difference
 # ToDo: Let the user provide the required compression
 
-def tedopa1(h_loc, a, state, j, domain, ts, g):
+def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
+            trotter_order=2, num_trotter_slices=100):
     """
     Mapping the Hamiltonian of a system composed of one site, linearly coupled
     to a reservoir of bosonic modes, to a 1D chain and performing time evolution
     Args:
-        h_loc (numpy.ndarray): Local Hamiltonian
+        h_loc (numpy.ndarray): Local Hamiltonian of the one site system
         a (numpy.ndarray): Interaction operator defined as A_hat in the paper
         state (mpnum.MPArray): The state of the system which is to be
             evolved. In PMPS form.
+        method (str): The form of the state, determining the method used
+            in the calculations. Either 'mpo' or 'pmps'.
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter (in the
+            form used by
+            mpnum.compress())
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation,
+            where trotter_compr is used.
+            compr = dict(method='svd', rank=10) would for example ensure that
+            the ranks of any MPA never exceed 10 during all of the calculations.
         j (types.LambdaType): spectral function J(omega) as defined in the paper
         domain (list[float]): Domain on which j is defined,
             for example [0, np.inf]
         ts (list of float): The times in seconds for which the evolution should
             be computed.
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
+        trotter_order (int):
+            Order of trotter to be used. Currently only 2 and 4
+            are implemented
+        num_trotter_slices (int): Number of Trotter slices to be used for the
+            largest t in ts.
+            If ts=[10, 25, 30] and num_trotter_slices=100,
+            then the programme would use 100/30*10=33, 100/30*25=83 and
+            100/30*30=100 Trotter slices to calculate the time evolution for the
+            three times.
 
     Returns:
-        mpnum.MPArray: The result
+        mpnum.MPArray: An array of times and an array of the corresponding
+        evolved states
     """
     state_shape = state.shape
     if len(domain) != 2:
@@ -47,36 +69,58 @@ def tedopa1(h_loc, a, state, j, domain, ts, g):
     print("Proceeding to tmps...")
     # put max ranks for compression
     times, states, compr_errors, trot_errors = tmps.evolve(
-        state=state,
-        hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
-        num_trotter_slices=100, method='pmps',
-        compr=dict(method='svd', rank=3, relerr=1e-6), trotter_order=2)
+        state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
+        num_trotter_slices=num_trotter_slices, method=method,
+        trotter_compr=trotter_compr, trotter_order=trotter_order, compr=compr)
     return times, states
 
 
-def tedopa2(h_loc, a, state, sys_position, js, domains, ts, gs=(1, 1)):
+def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
+            domains, ts, gs=(1, 1), trotter_order=2, num_trotter_slices=100):
     """
     Mapping the Hamiltonian of a system composed of two sites, each linearly
     coupled to a reservoir of bosonic modes, to a 1D chain and performing
-    time evolution
+    time evolution.
+    The first elements in the lists js, domains, etc. always refer to the
+    first (left) site and the second elements in the lists refer to the
+    second (right) site of the system
     Args:
-        h_loc (numpy.ndarray): Local Hamiltonian
+        h_loc (numpy.ndarray): Local Hamiltonian of the two site system
         a list[numpy.ndarray]: The two interaction operators defined as
             A_hat in the paper
         state (mpnum.MPArray): The state of the system which is to be
             evolved. In PMPS form.
+        method (str): The form of the state, determining the method used
+            in the calculations. Either 'mpo' or 'pmps'.
         sys_position (int): Which index, in the chain representing the state, is
             the position of the first site of the system (first would be 1,
             not 0). E.g. 3 if the chain sites are
             environment-environment-system-system-environment-environment
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter (in the
+            form used by mpnum.compress())
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation,
+            where trotter_compr is used.
+            compr = dict(method='svd', rank=10) would for example ensure that
+            the ranks of any MPA never exceed 10 during all of the calculations.
         js list[types.LambdaType]: spectral functions J(omega) for both
             environments as defined in the paper
-        domains list[list[float]]: Domains on which the js is defined,
-            for example [[0, np.inf],[0,1]]
+        domains list[list[float]]: Domains on which the js are defined,
+            for example [[0, np.inf], [0,1]]
         ts (list of float): The times in seconds for which the evolution should
             be computed.
         gs list[float]: Constant g, assuming that for J(omega) it is
             g(omega) = g * omega
+        trotter_order (int):
+            Order of trotter to be used. Currently only 2 and 4
+            are implemented
+        num_trotter_slices (int): Number of Trotter slices to be used for the
+            largest t in ts.
+            If ts=[10, 25, 30] and num_trotter_slices=100,
+            then the programme would use 100/30*10=33, 100/30*25=83 and
+            100/30*30=100 Trotter slices to calculate the time evolution for the
+            three times.
 
     Returns:
         mpnum.MPArray: The result
@@ -97,10 +141,9 @@ def tedopa2(h_loc, a, state, sys_position, js, domains, ts, gs=(1, 1)):
     print("Proceeding to tmps...")
     # put max ranks for compression
     times, states, compr_errors, trot_errors = tmps.evolve(
-        state=state,
-        hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
-        num_trotter_slices=100, method='pmps',
-        compr=dict(method='svd', rank=3, relerr=1e-6), trotter_order=4)
+        state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
+        num_trotter_slices=num_trotter_slices, method=method,
+        trotter_compr=trotter_compr, trotter_order=trotter_order, compr=compr)
     return times, states
 
 

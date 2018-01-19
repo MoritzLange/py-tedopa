@@ -27,28 +27,27 @@ class TestTMPS(object):
         num_trotter_slices = 100
 
         times, evolved_states, errors1, errors2 = \
-            tmps.evolve(mpo_state, hamiltonians=[B * self.sx(),
-                                                 J * np.kron(self.sz(),
-                                                             self.sz())],
+            tmps.evolve(state=mpo_state, hamiltonians=[B * self.sx(),
+                                                       J * np.kron(self.sz(),
+                                                                   self.sz())],
                         ts=times, num_trotter_slices=num_trotter_slices,
-                        method='mpo', compr=dict(method='svd', relerr=1e-20),
-                        trotter_order=2)
+                        method='mpo',
+                        trotter_compr=dict(method='svd', relerr=1e-20),
+                        trotter_order=2, compr=dict(method='svd', relerr=1e-20))
 
-        rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
-        rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
+        rho_t_arr = [self.exp(state=state, hamiltonian=hamiltonian, t=times[i])
+                     for i in range(len(times))]
 
-        rho_t_mpo_1 = evolved_states[0].to_array_global().reshape(
-            [2 ** n, 2 ** n])
-        rho_t_mpo_2 = evolved_states[1].to_array_global().reshape(
-            [2 ** n, 2 ** n])
+        rho_t_mpo = [
+            evolved_states[i].to_array_global().reshape([2 ** n, 2 ** n]) for i
+            in range(len(times))]
 
-        fidelity_1 = np.trace(
-            sqrtm(sqrtm(rho_t_arr_1).dot(rho_t_mpo_1).dot(sqrtm(rho_t_arr_1))))
-        fidelity_2 = np.trace(
-            sqrtm(sqrtm(rho_t_arr_2).dot(rho_t_mpo_2).dot(sqrtm(rho_t_arr_2))))
+        fidelities = [np.trace(sqrtm(
+            sqrtm(rho_t_arr[i]).dot(rho_t_mpo[i]).dot(sqrtm(rho_t_arr[i])))) for
+            i in range(len(times))]
 
-        assert np.isclose(1, fidelity_1, rtol=self.precision)
-        assert np.isclose(1, fidelity_2, rtol=self.precision)
+        for i in range(len(times)):
+            assert np.isclose(1, fidelities[i], rtol=self.precision)
 
     def test_pmps_trotter2(self):
         n = 4  # number of sites
@@ -65,28 +64,27 @@ class TestTMPS(object):
         num_trotter_slices = 100
 
         times, evolved_states, errors1, errors2 = \
-            tmps.evolve(pmps_state, hamiltonians=[B * self.sx(),
-                                                  J * np.kron(self.sz(),
-                                                              self.sz())],
+            tmps.evolve(state=pmps_state, hamiltonians=[B * self.sx(),
+                                                        J * np.kron(self.sz(),
+                                                                    self.sz())],
                         ts=times, num_trotter_slices=num_trotter_slices,
-                        method='pmps', compr=dict(method='svd', relerr=1e-20),
-                        trotter_order=2)
+                        method='pmps',
+                        trotter_compr=dict(method='svd', relerr=1e-20),
+                        trotter_order=2, compr=dict(method='svd', relerr=1e-20))
 
-        rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
-        rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
+        rho_t_arr = [self.exp(state=state, hamiltonian=hamiltonian, t=times[i])
+                     for i in range(len(times))]
 
-        rho_t_pmps_1 = mp.pmps_to_mpo(
-            evolved_states[0]).to_array_global().reshape([2 ** n, 2 ** n])
-        rho_t_pmps_2 = mp.pmps_to_mpo(
-            evolved_states[1]).to_array_global().reshape([2 ** n, 2 ** n])
+        rho_t_pmps = [
+            mp.pmps_to_mpo(evolved_states[i]).to_array_global().reshape(
+                [2 ** n, 2 ** n]) for i in range(len(times))]
 
-        fidelity_1 = np.trace(
-            sqrtm(sqrtm(rho_t_arr_1).dot(rho_t_pmps_1).dot(sqrtm(rho_t_arr_1))))
-        fidelity_2 = np.trace(
-            sqrtm(sqrtm(rho_t_arr_2).dot(rho_t_pmps_2).dot(sqrtm(rho_t_arr_2))))
+        fidelities = [np.trace(sqrtm(
+            sqrtm(rho_t_arr[i]).dot(rho_t_pmps[i]).dot(sqrtm(rho_t_arr[i]))))
+            for i in range(len(times))]
 
-        assert np.isclose(1, fidelity_1, rtol=self.precision)
-        assert np.isclose(1, fidelity_2, rtol=self.precision)
+        for i in range(len(times)):
+            assert np.isclose(1, fidelities[i], rtol=self.precision)
 
     def test_pmps_trotter4(self):
         n = 4  # number of sites
@@ -103,28 +101,27 @@ class TestTMPS(object):
         num_trotter_slices = 100
 
         times, evolved_states, errors1, errors2 = \
-            tmps.evolve(pmps_state, hamiltonians=[B * self.sx(),
-                                                  J * np.kron(self.sz(),
-                                                              self.sz())],
+            tmps.evolve(state=pmps_state, hamiltonians=[B * self.sx(),
+                                                        J * np.kron(self.sz(),
+                                                                    self.sz())],
                         ts=times, num_trotter_slices=num_trotter_slices,
-                        method='pmps', compr=dict(method='svd', relerr=1e-20),
-                        trotter_order=2)
+                        method='pmps',
+                        trotter_compr=dict(method='svd', relerr=1e-20),
+                        trotter_order=4, compr=dict(method='svd', relerr=1e-20))
 
-        rho_t_arr_1 = self.exp(state=state, hamiltonian=hamiltonian, t=times[0])
-        rho_t_arr_2 = self.exp(state=state, hamiltonian=hamiltonian, t=times[1])
+        rho_t_arr = [self.exp(state=state, hamiltonian=hamiltonian, t=times[i])
+                     for i in range(len(times))]
 
-        rho_t_pmps_1 = mp.pmps_to_mpo(
-            evolved_states[0]).to_array_global().reshape([2 ** n, 2 ** n])
-        rho_t_pmps_2 = mp.pmps_to_mpo(
-            evolved_states[1]).to_array_global().reshape([2 ** n, 2 ** n])
+        rho_t_pmps = [
+            mp.pmps_to_mpo(evolved_states[i]).to_array_global().reshape(
+                [2 ** n, 2 ** n]) for i in range(len(times))]
 
-        fidelity_1 = np.trace(
-            sqrtm(sqrtm(rho_t_arr_1).dot(rho_t_pmps_1).dot(sqrtm(rho_t_arr_1))))
-        fidelity_2 = np.trace(
-            sqrtm(sqrtm(rho_t_arr_2).dot(rho_t_pmps_2).dot(sqrtm(rho_t_arr_2))))
+        fidelities = [np.trace(sqrtm(
+            sqrtm(rho_t_arr[i]).dot(rho_t_pmps[i]).dot(sqrtm(rho_t_arr[i]))))
+            for i in range(len(times))]
 
-        assert np.isclose(1, fidelity_1, rtol=self.precision)
-        assert np.isclose(1, fidelity_2, rtol=self.precision)
+        for i in range(len(times)):
+            assert np.isclose(1, fidelities[i], rtol=self.precision)
 
     ############# Pauli matrices ################
     def sx(self):

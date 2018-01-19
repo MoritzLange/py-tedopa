@@ -6,5 +6,6 @@ setup(
     author='Moritz Lange, Ish Dhand',
     packages=['tedopa'],
     author_email='moritz.lange@uni-ulm.de, ishdhand@gmail.com',
-    description="Time evolving density matrix using orthogonal polynomials algorithm",
+    description="Time evolving density matrix using orthogonal polynomials "
+                "algorithm (TEDOPA)",
 )
