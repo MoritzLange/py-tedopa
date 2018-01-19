@@ -13,7 +13,7 @@ from tedopa import tmps
 # ToDo: Let the user provide the required compression
 
 def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
-            trotter_order=2, num_trotter_slices=100):
+            trotter_order=2, num_trotter_slices=100, ncap=60000, v=False):
     """
     Mapping the Hamiltonian of a system composed of one site, linearly coupled
     to a reservoir of bosonic modes, to a 1D chain and performing time evolution
@@ -48,10 +48,16 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
             then the programme would use 100/30*10=33, 100/30*25=83 and
             100/30*30=100 Trotter slices to calculate the time evolution for the
             three times.
+        ncap (int):
+            Number internally used by py-orthpol. Must be <= 60000,
+            the higher the longer the calculation of the coefficients takes
+            and the more accurate it becomes.
+        v (bool): Verbose or not verbose (will print what is going on vs.
+            won't print anything)
 
     Returns:
-        mpnum.MPArray: An array of times and an array of the corresponding
-        evolved states
+        list[list[float], list[mpnum.MPArray]]: An array of times and an array
+        of the corresponding evolved states
     """
     state_shape = state.shape
     if len(domain) != 2:
@@ -64,19 +70,22 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
         raise ValueError("The provided state has no chain representing "
                          "the mapped environment")
 
+    if v: print("Calculating the TEDOPA mapping...")
     singlesite_ops, twosite_ops = _get_operators(h_loc, a, state_shape,
-                                                 j, domain, g)
-    print("Proceeding to tmps...")
+                                                 j, domain, g, ncap)
+    if v: print("Proceeding to tmps...")
     # put max ranks for compression
     times, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         num_trotter_slices=num_trotter_slices, method=method,
-        trotter_compr=trotter_compr, trotter_order=trotter_order, compr=compr)
+        trotter_compr=trotter_compr, trotter_order=trotter_order,
+        compr=compr, v=v)
     return times, states
 
 
 def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
-            domains, ts, gs=(1, 1), trotter_order=2, num_trotter_slices=100):
+            domains, ts, gs=(1, 1), trotter_order=2, num_trotter_slices=100,
+            ncap=60000, v=False):
     """
     Mapping the Hamiltonian of a system composed of two sites, each linearly
     coupled to a reservoir of bosonic modes, to a 1D chain and performing
@@ -121,33 +130,42 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
             then the programme would use 100/30*10=33, 100/30*25=83 and
             100/30*30=100 Trotter slices to calculate the time evolution for the
             three times.
+        ncap (int):
+            Number internally used by py-orthpol. Must be <= 60000,
+            the higher the longer the calculation of the coefficients takes
+            and the more accurate it becomes.
+        v (bool): Verbose or not verbose (will print what is going on vs.
+            won't print anything)
 
-    Returns:
-        mpnum.MPArray: The result
+    list[list[float], list[mpnum.MPArray]]: An array of times and an array
+        of the corresponding evolved states
     """
     state_shape = state.shape
     # ToDo: Implement some checks, like above
+    if v: print("Calculating the TEDOPA mapping...")
     left_ops = _get_operators(np.zeros([state_shape[sys_position - 1][0]] * 2),
                               a[0], list(reversed(state_shape[:sys_position:])),
-                              js[0], domains[0], gs[0])
+                              js[0], domains[0], gs[0], ncap)
     singlesite_ops_left, twosite_ops_left = (list(reversed(i)) for i in
                                              left_ops)
     singlesite_ops_right, twosite_ops_right = \
         _get_operators(np.zeros([state_shape[sys_position][0]] * 2), a[1],
-                       state_shape[sys_position::], js[1], domains[1], gs[1])
+                       state_shape[sys_position::], js[1], domains[1], gs[1],
+                       ncap)
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
     twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
 
-    print("Proceeding to tmps...")
+    if v: print("Proceeding to tmps...")
     # put max ranks for compression
     times, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         num_trotter_slices=num_trotter_slices, method=method,
-        trotter_compr=trotter_compr, trotter_order=trotter_order, compr=compr)
+        trotter_compr=trotter_compr, trotter_order=trotter_order,
+        compr=compr, v=v)
     return times, states
 
 
-def _get_operators(h_loc, a, state_shape, j, domain, g):
+def _get_operators(h_loc, a, state_shape, j, domain, g, ncap):
     """
     Get the operators acting on the chain
     Args:
@@ -159,13 +177,15 @@ def _get_operators(h_loc, a, state_shape, j, domain, g):
         domain (list[float]): Domain on which j is defined,
             for example [0, np.inf]
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
+        ncap (int):
+            Number internally used by py-orthpol.
 
     Returns:
         list[list[numpy.ndarray]]: Lists of single-site and
             adjacent-site operators
     """
     params = _get_parameters(
-        n=len(state_shape), j=j, domain=domain, g=g)
+        n=len(state_shape), j=j, domain=domain, g=g, ncap=ncap)
     dims_chain = [i[0] for i in state_shape]
     bs = [_get_annihilation_op(dim) for dim in dims_chain[1::]]
     b_daggers = [b.T for b in bs]
@@ -220,7 +240,7 @@ def _get_twosite_ops(a, params, bs, b_daggers):
     return twosite_ops
 
 
-def _get_parameters(n, j, domain, g):
+def _get_parameters(n, j, domain, g, ncap):
     """
     Calculate the parameters needed for mapping the Hamiltonian to a 1D chain
     Args:
@@ -230,15 +250,15 @@ def _get_parameters(n, j, domain, g):
         domain (list[float]): Domain on which j is defined,
             for example [0, np.inf]
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
+        ncap (int):
+            Number internally used by py-orthpol.
 
     Returns:
         list[list[float], list[float], float]: omegas, ts, c0
             as defined in the paper
     """
-    print("Calculating recursion coefficients...")
     alphas, betas = rc.recursionCoefficients(n, lb=domain[0],
-                                             rb=domain[1], j=j, g=g, ncap=10000)
-    print("Done.")
+                                             rb=domain[1], j=j, g=g, ncap=ncap)
     omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
     c0 = np.sqrt(betas[0])

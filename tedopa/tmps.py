@@ -121,8 +121,8 @@ def _times_to_steps(times, num_trotter_slices):
     """
     times.sort()
     tau = times[-1] / num_trotter_slices
-    times[:] = [int(round(t / tau)) for t in times]
-    return times, tau
+    ts = [int(round(t / tau)) for t in times]
+    return ts, tau
 
 
 def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
@@ -216,7 +216,6 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     for i in range(2, -1, -1):
         u = _compress(u, 'mpo', compr)
         u = mp.dot(u, u_parts[i])
-    print("donewithT4")
     return u
 
 
@@ -438,7 +437,7 @@ def normalize(state, method):
 
 
 def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
-           trotter_order, compr):
+           trotter_order, compr, v=False):
     """
     Evolve a state using tMPS.
     Args:
@@ -454,9 +453,9 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
             sites, like [[h1, h2, h3, ...], [h12, h23, h34, ...]]
         ts (list of float):
             The times in seconds for which the evolution should be computed. The
-            algorithm will calculate the evolution, with the given number of
-            Trotter steps, for the largest number in t and on the way there
-            store the evolved states for smaller times.
+            algorithm will calculate the evolution using the given number of
+            Trotter steps for the largest number in ts. On the way there
+            it will store the evolved states for smaller times.
             NB: Beware of memory overload since len(t)
                 mpnum.MPArrays will be stored
         num_trotter_slices (int): Number of Trotter slices to be used for the
@@ -471,6 +470,8 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+        v (bool): Verbose or not verbose (will print what is going on vs.
+            won't print anything)
     Returns:
         (list):
             A list of four items: (i) The list of times for which the density
@@ -495,10 +496,13 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
                        num_sites=len(state), trotter_order=trotter_order,
                        compr=compr)
     u = _compress(u, 'mpo', compr)
-    return _time_evolution(state, u, ts, tau, method, trotter_compr)
+    if v: print("Time evolution operator for Trotter slice calculated, "
+                "starting "
+                "Trotter iterations...")
+    return _time_evolution(state, u, ts, tau, method, trotter_compr, v)
 
 
-def _time_evolution(state, u, ts, tau, method, trotter_compr):
+def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
     """
     Do the actual time evolution
     Args:
@@ -514,6 +518,8 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr):
             Method to use as defined in evolve()
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter
+        v (bool): Verbose or not verbose (will print what is going on vs.
+            won't print anything)
     Returns:
         (list):
             A list with four items: (i)The list of times for which the density
@@ -535,14 +541,18 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr):
         state = mp.dot(u, state)
         if method == 'mpo':
             state = mp.dot(state, u_dagger)
-        state = normalize(state, method)
         accumulated_overlap *= state.compress(**trotter_compr)
+        state = normalize(state, method)
         accumulated_trotter_error += tau ** 3
         if i + 1 in ts:
             times.append(tau * (i + 1))
             states.append(state)
             compr_errors.append(accumulated_overlap)
             trot_errors.append(accumulated_trotter_error)
+        if v and np.sqrt(i) % 1 == 0 and i != 0: print(str(i) + " Trotter "
+                                                                "iterations "
+                                                                "finished...")
+    if v: print("Done with time evolution")
     return times, states, compr_errors, trot_errors
 =======
 
