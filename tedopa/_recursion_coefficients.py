@@ -1,18 +1,19 @@
 """
-Functions to calculate recursion coefficients.
+Functions to calculate recursion coefficients, based on the package py-orthpol
 """
 import math
 
 import orthpol as orth
 
 
-def recursionCoefficients(n=2, lb=-1, rb=1, j=lambda x: 1., g=1, ncap=60000):
+def recursionCoefficients(n, lb, rb, j, g, ncap=60000):
     """
 <<<<<<< HEAD
     Calculate the recursion coefficients for monic polynomials for a  given
     dispersion relation J(omega) as defined in the paper Journal of Mathematical
     Physics 51, 092109 (2010); doi: 10.1063/1.3490188 J(omega) must be a python
     lambda function.
+
     Args:
       n (int):
         Number of recursion coefficients required (Default value = 2)
@@ -29,6 +30,7 @@ def recursionCoefficients(n=2, lb=-1, rb=1, j=lambda x: 1., g=1, ncap=60000):
         Number internally used by py-orthpol. Must be >n and <=60000. Between
         10000 and 60000 recommended, the higher the number the higher the
         accuracy and the longer the execution time. Defaults to 60000.
+
     Returns:
         list:
             A list with two items: (i) alphas, which is one half of the n first
@@ -62,6 +64,8 @@ def recursionCoefficients(n=2, lb=-1, rb=1, j=lambda x: 1., g=1, ncap=60000):
     # The procedure does not work for ncap > 60000, it would return wrong values
     # n must be < ncap for orthpol to work
 
+    #ToDo: Check if ncap <= 60000 is system dependent or holds everywhere
+
     if ncap > 60000:
 <<<<<<< HEAD
         return [0], [0]
@@ -87,6 +91,7 @@ def recursionCoefficients(n=2, lb=-1, rb=1, j=lambda x: 1., g=1, ncap=60000):
 def _j_to_hsquared(func, lb, rb, g):
     """ Transform J(omega) to h^2(omega) which will be the weight function for
     the generated polynomials
+
     Args:
         func:
             J(omega)
@@ -95,7 +100,9 @@ def _j_to_hsquared(func, lb, rb, g):
         rb:
             right boundary
         g: factor
+
     Returns:
+<<<<<<< HEAD
         list:
             {lb, rb, h^2} where lb and rb are the new left and right boundaries
             for h^2
@@ -105,6 +112,11 @@ def _j_to_hsquared(func, lb, rb, g):
     def h_squared(x): return func(g * x) * g / math.pi
 =======
     Transform J(omega) to h^2(omega) which will be the weight function for the generated polynomials
+=======
+        tuple[float, float, types.LambdaType]:
+            lb, rb, h^2 Where lb and rb are the new left and right boundaries
+            for h^2
+>>>>>>> b2002c6... Improved the documentation where necessary
 
     Args:
         func (lambda): J(omega)

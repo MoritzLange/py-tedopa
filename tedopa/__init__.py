@@ -1,3 +1,3 @@
 """
-This will be a Tedopa implementation
+This is a TEDOPA implementation.
 """

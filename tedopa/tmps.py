@@ -1,8 +1,6 @@
 """
 Functions to calculate the time evolution of an operator in MPO or PMPS form
 from Hamiltonians acting on every single and every two adjacent sites.
-This file contains functions which integrate the single site operators into the
-ones acting on odd adjacent sites.
 """
 from itertools import repeat
 
@@ -110,14 +108,15 @@ def _times_to_steps(times, num_trotter_slices):
     evolution should be computed.
     If times=[10, 25, 30] and num_trotter_slices was 100, then the result
     would be times=[33, 83, 100]
+
     Args:
         times (list of float):
             The times for which the evolution should be computed
         num_trotter_slices (int):
             The number of time steps or Trotter slices for the time evolution
+
     Returns:
-        tuple[list[int], float]:
-            times, tau = maximal t / num_trotter_slices
+        tuple[list[int], float]: times, tau = maximal t / num_trotter_slices
     """
     times.sort()
     tau = times[-1] / num_trotter_slices
@@ -129,6 +128,7 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
     """
     Calculate the time evolution operator u for the respective trotter order for
     one trotter slice.
+
     Args:
         hamiltonians (list):
             List of two lists of Hamiltonians, the Hamiltonians in the first
@@ -143,9 +143,9 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+
     Returns:
-        mpnum.MPArray:
-            The time evolution operator u for one Trotter slice
+        mpnum.MPArray: The time evolution operator u for one Trotter slice
     """
     if trotter_order == 2:
         return _trotter_two(hamiltonians, tau, num_sites, compr)
@@ -160,6 +160,7 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
     """
     Calculate the time evolution operator u, comprising even and odd terms, for
     one Trotter slice and Trotter of order 2.
+
     Args:
         hamiltonians (list):
             List of two lists of Hamiltonians, the Hamiltonians in the first
@@ -172,6 +173,7 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+
     Returns:
         mpnum.MPArray:
             The time evolution operator u for one Trotter slice
@@ -189,6 +191,7 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     """
     Calculate the time evolution operator u, comprising even and odd terms, for
     one Trotter slice and Trotter of order 4.
+
     Args:
         hamiltonians (list):
             List of two lists of Hamiltonians, the Hamiltonians in the first
@@ -199,9 +202,9 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+
     Returns:
-        mpnum.MPArray:
-            The time evolution operator u for one Trotter slice
+        mpnum.MPArray: The time evolution operator u for one Trotter slice
     """
     taus = [tau / (4 - 4 ** (1 / 3)), tau / (4 - 4 ** (1 / 3)),
             tau - 4 * tau / (4 - 4 ** (1 / 3))]
@@ -224,13 +227,15 @@ def _get_h_list(hs, num_sites):
     If only one Hamiltonian acting on every single site and one acting on every
     two adjacent sites is given, transform it into the form returned. If not,
     check whether the lengths of the lists match the number of sites.
+
     Args:
         hs (list):
             Hamiltonians as in evolve()
         num_sites (int):
             Number of sites of the state to be evolved
+
     Returns:
-        (list):
+        list[list[numpy.ndarray], list[numpy.ndarray]]:
             A list with two items: The first is a list of Hamiltonians acting
             on the single sites, like [h1, h2, h3, ...] and the second is a list
             of Hamiltonians acting on each two adjacent sites, like [h12, h23,
@@ -250,6 +255,7 @@ def _get_u_list(h_single, h_adjacent, tau):
     Calculates time evolution operators from Hamiltonians. The time evolution
     operators acting on odd sites contain a factor .5 for the second order
     Trotter.
+
     Args:
         h_single (list):
             The Hamiltonians acting on every single site
@@ -257,8 +263,9 @@ def _get_u_list(h_single, h_adjacent, tau):
             The Hamiltonians acting on every two adjacent sites
         tau (float):
             As defined in _times_to_steps()
+
     Returns:
-        (list):
+        list[list(int), list[numpy.ndarray], list[numpy.ndarray]]:
             A list with three items: (i) List of dimensions of each site and
             lists of time evolution operators. (ii) List of operators acting on
             odd adjacent sites, like [u12, u34, ...] (iii) List of operators
@@ -280,6 +287,7 @@ def _u_list_to_mpo(dims, u_odd, u_even, compr):
     """
     Transforms the matrices for time evolution to operators acting on the full
     state
+
     Args:
         dims (list):
             List of dimensions of each site
@@ -290,8 +298,9 @@ def _u_list_to_mpo(dims, u_odd, u_even, compr):
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+
     Returns:
-        (list):
+        list[list[mpnum.MPArray], list[mpnum.MPArray]]:
             A list of two mparrays. (i) The time evolution MPOs for the full
             state acting on odd adjacent sites (ii) The time evolution MPOs for
             the full state acting on even adjacent sites
@@ -317,6 +326,7 @@ def matrix_to_mpo(matrix, shape, compr=None):
     """
     Generates a MPO from a NxN matrix in global form (probably also works for
     MxN). The number of legs per site must be the same for all sites.
+
     Args:
         matrix (numpy.ndarray):
             The matrix to be transformed to an MPO
@@ -327,6 +337,7 @@ def matrix_to_mpo(matrix, shape, compr=None):
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+
     Returns:
         mpnum.MPArray:
             The MPO representing the matrix
@@ -381,8 +392,9 @@ def _compress(state, method, maxranks):
 def _compress(state, method, compr):
 >>>>>>> 708c0ab... Minor improvements to code and documentation
     """
-    Compress and normalize a state with a very small relative error. This is
-    meant to get unnecessary ranks out of a state without losing information.
+    Compress and normalize a state with a with the provided compression
+    parameters.
+
     Args:
 <<<<<<< HEAD
         state (mpnum.MPArray):
@@ -418,13 +430,18 @@ def normalize(state, method):
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
     """
     Normalize a state (hopefully in place)
+
     Args:
         state (mpnum.MPArray): The state to be normalized
         method (str): Whether it is a MPO or PMPS state
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     Returns: nothing
 =======
+=======
+
+>>>>>>> b2002c6... Improved the documentation where necessary
     Returns:
         mpnum.MPArray: The normalized state
 >>>>>>> 983b6c2... Rewrote tedopa/tedopa.py
@@ -440,6 +457,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
            trotter_order, compr, v=False):
     """
     Evolve a state using tMPS.
+
     Args:
         state (mpnum.MPArray):
             The state to be evolved in time(the density matrix, not state
@@ -452,11 +470,11 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
             single sites and a list of Hamiltonians acting on each two adjacent
             sites, like [[h1, h2, h3, ...], [h12, h23, h34, ...]]
         ts (list of float):
-            The times in seconds for which the evolution should be computed. The
+            The times for which the evolution should be computed. The
             algorithm will calculate the evolution using the given number of
             Trotter steps for the largest number in ts. On the way there
             it will store the evolved states for smaller times.
-            NB: Beware of memory overload since len(t)
+                NB: Beware of memory overload since len(t)
                 mpnum.MPArrays will be stored
         num_trotter_slices (int): Number of Trotter slices to be used for the
             largest t in ts.
@@ -472,8 +490,9 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
             where trotter_compr is used
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
+
     Returns:
-        (list):
+        list[list[float], list[mpnum.MPArray], list[float], list[float]]:
             A list of four items: (i) The list of times for which the density
             matrices have been computed (ii) The list of density matrices as MPO
             or PMPS as mpnum.MPArray, depending on the input "method" (iii) The
@@ -505,6 +524,7 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
 def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
     """
     Do the actual time evolution
+
     Args:
         state (mpnum.MPArray):
             The state to be evolved in time
@@ -520,8 +540,9 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
             Compression parameters used in the iterations of Trotter
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
+
     Returns:
-        (list):
+        list[list[float], list[mpnum.MPArray], list[float], list[float]]:
             A list with four items: (i)The list of times for which the density
             matrices have been computed (ii) The list of density matrices as MPO
             or PMPS as mpnum.MPArray, depending on the input "method" (iii) The
