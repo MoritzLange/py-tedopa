@@ -6,7 +6,7 @@ import math
 import orthpol as orth
 
 
-def recursionCoefficients(n, lb, rb, j, g, ncap=60000):
+def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
     """
 <<<<<<< HEAD
     Calculate the recursion coefficients for monic polynomials for a  given
@@ -64,7 +64,7 @@ def recursionCoefficients(n, lb, rb, j, g, ncap=60000):
     # The procedure does not work for ncap > 60000, it would return wrong values
     # n must be < ncap for orthpol to work
 
-    #ToDo: Check if ncap <= 60000 is system dependent or holds everywhere
+    # ToDo: Check if ncap <= 60000 is system dependent or holds everywhere
 
     if ncap > 60000:
 <<<<<<< HEAD
@@ -132,7 +132,7 @@ def _j_to_hsquared(func, lb, rb, g):
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
 =======
 
-    def h_squared(x): return func(g * x) * g / math.pi
+    h_squared = lambda x: func(g * x) * g / math.pi
 
 >>>>>>> 206decc... New untested TEDOPA implementation
     # change the boundaries of the interval accordingly

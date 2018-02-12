@@ -8,7 +8,7 @@ import math
 
 import numpy as np
 
-from tedopa import _recursion_coefficients
+from tedopa import _recurrence_coefficients
 
 
 class TestCoefficients(object):
@@ -40,7 +40,7 @@ class TestCoefficients(object):
 
         # Calculate the recursion coefficients, the alphas and betas
         alphas_numeric, betas_numeric = \
-            _recursion_coefficients.recursionCoefficients(
+            _recurrence_coefficients.recurrenceCoefficients(
                 n=n - 1, g=g, j=j, lb=lb, rb=rb, ncap=10000)
 
         # The theoretical values
@@ -74,7 +74,7 @@ class TestCoefficients(object):
 
         # Calculate the recursion coefficients, the alphas and betas
         alphas_numeric, betas_numeric = \
-            _recursion_coefficients.recursionCoefficients(
+            _recurrence_coefficients.recurrenceCoefficients(
                 n=n - 1, g=g, j=j, lb=lb, rb=rb, ncap=10000)
 
         # The theoretical values
@@ -108,7 +108,7 @@ class TestCoefficients(object):
 
         # Calculate the recursion coefficients, the alphas and betas
         alphas_numeric, betas_numeric = \
-            _recursion_coefficients.recursionCoefficients(
+            _recurrence_coefficients.recurrenceCoefficients(
                 n=n - 1, g=g, j=j, lb=lb, rb=rb, ncap=10000)
 
         # The theoretical values

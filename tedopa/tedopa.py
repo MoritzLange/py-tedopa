@@ -6,7 +6,7 @@ The mapping and time evolution are done in one function and not seperately.
 
 import numpy as np
 import mpnum as mp
-from tedopa import _recursion_coefficients as rc
+from tedopa import _recurrence_coefficients as rc
 from tedopa import tmps
 
 
@@ -47,7 +47,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
         num_trotter_slices (int): Number of Trotter slices to be used for the
             largest t in ts.
             If ts=[10, 25, 30] and num_trotter_slices=100,
-            then the programme would use 100/30*10=33, 100/30*25=83 and
+            then the program would use 100/30*10=33, 100/30*25=83 and
             100/30*30=100 Trotter slices to calculate the time evolution for the
             three times.
         ncap (int):
@@ -76,7 +76,6 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
     singlesite_ops, twosite_ops = _get_operators(h_loc, a, state_shape,
                                                  j, domain, g, ncap)
     if v: print("Proceeding to tmps...")
-    # put max ranks for compression
     times, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         num_trotter_slices=num_trotter_slices, method=method,
@@ -130,7 +129,7 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
         num_trotter_slices (int): Number of Trotter slices to be used for the
             largest t in ts.
             If ts=[10, 25, 30] and num_trotter_slices=100,
-            then the programme would use 100/30*10=33, 100/30*25=83 and
+            then the program would use 100/30*10=33, 100/30*25=83 and
             100/30*30=100 Trotter slices to calculate the time evolution for the
             three times.
         ncap (int):
@@ -147,20 +146,20 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
     state_shape = state.shape
     # ToDo: Implement some checks, like above
     if v: print("Calculating the TEDOPA mapping...")
+    print(state.ranks)
     left_ops = _get_operators(np.zeros([state_shape[sys_position - 1][0]] * 2),
                               a[0], list(reversed(state_shape[:sys_position:])),
                               js[0], domains[0], gs[0], ncap)
-    singlesite_ops_left, twosite_ops_left = (list(reversed(i)) for i in
-                                             left_ops)
+    singlesite_ops_left, twosite_ops_left = [list(reversed(i)) for i in
+                                             left_ops]
     singlesite_ops_right, twosite_ops_right = \
         _get_operators(np.zeros([state_shape[sys_position][0]] * 2), a[1],
-                       state_shape[sys_position::], js[1], domains[1], gs[1],
-                       ncap)
+                       list(state_shape[sys_position::]), js[1], domains[1],
+                       gs[1], ncap)
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
     twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
 
     if v: print("Proceeding to tmps...")
-    # put max ranks for compression
     times, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         num_trotter_slices=num_trotter_slices, method=method,
@@ -176,7 +175,7 @@ def _get_operators(h_loc, a, state_shape, j, domain, g, ncap):
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian
         a (numpy.ndarray): Interaction operator defined as A_hat in the paper
-        state_shape list[list[int]]: The shape of the chain on which the
+        state_shape (list[list[int]]): The shape of the chain on which the
             hamiltonian is to be applied
         j (types.LambdaType): spectral function J(omega) as defined in the paper
         domain (list[float]): Domain on which j is defined,
@@ -266,8 +265,10 @@ def _get_parameters(n, j, domain, g, ncap):
         list[list[float], list[float], float]:
             omegas, ts, c0 as defined in the paper
     """
-    alphas, betas = rc.recursionCoefficients(n, lb=domain[0],
-                                             rb=domain[1], j=j, g=g, ncap=ncap)
+    alphas, betas = rc.recurrenceCoefficients(n, lb=domain[0],
+                                              rb=domain[1], j=j, g=g, ncap=ncap)
+    print("alphas = " + str(alphas))
+    print("betas = " + str(betas))
     omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
     c0 = np.sqrt(betas[0])
