@@ -567,7 +567,7 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
         accumulated_trotter_error += tau ** 3
         if i + 1 in ts:
             times.append(tau * (i + 1))
-            states.append(state)
+            states.append(state.copy())
             compr_errors.append(accumulated_overlap)
             trot_errors.append(accumulated_trotter_error)
         if v and np.sqrt(i) % 1 == 0 and i != 0: print(str(i) + " Trotter "
