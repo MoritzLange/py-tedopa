@@ -310,10 +310,10 @@ def _u_list_to_mpo(dims, u_odd, u_even, compr):
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
-                   for i, u in enumerate(u_odd))
+        for i, u in enumerate(u_odd))
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
-                    for i, u in enumerate(u_even))
+        for i, u in enumerate(u_even))
     even = mp.chain([mp.eye(1, dims[0]), even])
     if len(u_odd) > len(u_even):
         even = mp.chain([even, mp.eye(1, dims[-1])])
@@ -342,7 +342,8 @@ def matrix_to_mpo(matrix, shape, compr=None):
         mpnum.MPArray:
             The MPO representing the matrix
     """
-    if compr == None: compr = dict(method='svd', relerr=1e-6)
+    if compr == None:
+        compr = dict(method='svd', relerr=1e-6)
     num_legs = len(shape[0])
     if not (np.array([len(shape[i]) for i in
                       range(len(shape))]) == num_legs).all():
@@ -515,9 +516,10 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
                        num_sites=len(state), trotter_order=trotter_order,
                        compr=compr)
     u = _compress(u, 'mpo', compr)
-    if v: print("Time evolution operator for Trotter slice calculated, "
-                "starting "
-                "Trotter iterations...")
+    if v:
+        print("Time evolution operator for Trotter slice calculated, "
+              "starting "
+              "Trotter iterations...")
     return _time_evolution(state, u, ts, tau, method, trotter_compr, v)
 
 
@@ -570,10 +572,13 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
             states.append(state.copy())
             compr_errors.append(accumulated_overlap)
             trot_errors.append(accumulated_trotter_error)
-        if v and np.sqrt(i) % 1 == 0 and i != 0: print(str(i) + " Trotter "
-                                                                "iterations "
-                                                                "finished...")
-    if v: print("Done with time evolution")
+        if v and np.sqrt(i) % 1 == 0 and i != 0:
+            print(str(i) + " Trotter "
+                  "iterations "
+                  "finished...")
+            print(state.lt.shape)
+    if v:
+        print("Done with time evolution")
     return times, states, compr_errors, trot_errors
 =======
 

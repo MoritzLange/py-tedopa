@@ -5,13 +5,14 @@ The mapping and time evolution are done in one function and not seperately.
 """
 
 import numpy as np
+
 import mpnum as mp
 from tedopa import _recurrence_coefficients as rc
 from tedopa import tmps
 
-
 # ToDo: Check if different g actually make a difference
 # ToDo: Let the user provide the required compression
+
 
 def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
             trotter_order=2, num_trotter_slices=100, ncap=60000, v=False):
@@ -72,10 +73,12 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
         raise ValueError("The provided state has no chain representing "
                          "the mapped environment")
 
-    if v: print("Calculating the TEDOPA mapping...")
+    if v:
+        print("Calculating the TEDOPA mapping...")
     singlesite_ops, twosite_ops = _get_operators(h_loc, a, state_shape,
                                                  j, domain, g, ncap)
-    if v: print("Proceeding to tmps...")
+    if v:
+        print("Proceeding to tmps...")
     times, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         num_trotter_slices=num_trotter_slices, method=method,
@@ -145,8 +148,9 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
     """
     state_shape = state.shape
     # ToDo: Implement some checks, like above
-    if v: print("Calculating the TEDOPA mapping...")
-    print(state.ranks)
+    if v:
+        print("Calculating the TEDOPA mapping...")
+        print(state.ranks)
     left_ops = _get_operators(np.zeros([state_shape[sys_position - 1][0]] * 2),
                               a[0], list(reversed(state_shape[:sys_position:])),
                               js[0], domains[0], gs[0], ncap)
@@ -159,7 +163,8 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
     twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
 
-    if v: print("Proceeding to tmps...")
+    if v:
+        print("Proceeding to tmps...")
     times, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         num_trotter_slices=num_trotter_slices, method=method,
@@ -194,7 +199,7 @@ def _get_operators(h_loc, a, state_shape, j, domain, g, ncap):
     bs = [_get_annihilation_op(dim) for dim in dims_chain[1::]]
     b_daggers = [b.T for b in bs]
     return _get_singlesite_ops(h_loc, params, bs, b_daggers), \
-           _get_twosite_ops(a, params, bs, b_daggers)
+        _get_twosite_ops(a, params, bs, b_daggers)
 
 
 def _get_singlesite_ops(h_loc, params, bs, b_daggers):
@@ -241,7 +246,7 @@ def _get_twosite_ops(a, params, bs, b_daggers):
     omegas, ts, c0 = params
     twosite_ops = [ts[i] * (
         np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for
-                   i in range(len(bs) - 1)]
+        i in range(len(bs) - 1)]
     twosite_ops = [c0 * np.kron(a, bs[0] + b_daggers[0])] + twosite_ops
 
     return twosite_ops
