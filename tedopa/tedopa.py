@@ -1,7 +1,7 @@
 """
 Implementation of the TEDOPA mapping, as described in
 Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188
-The mapping and time evolution are done in one function and not seperately.
+tedopa1 and tedopa2 do the mapping and perform time evolution with it.
 """
 
 import numpy as np
@@ -10,12 +10,14 @@ import mpnum as mp
 from tedopa import _recurrence_coefficients as rc
 from tedopa import tmps
 
+
 # ToDo: Check if different g actually make a difference
 # ToDo: Let the user provide the required compression
 
 
-def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
-            trotter_order=2, num_trotter_slices=100, ncap=60000, v=False):
+def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
+            ts_full, ts_system, g, trotter_order=2, num_trotter_slices=100,
+            ncap=60000, v=False):
     """
     Mapping the Hamiltonian of a system composed of one site, linearly coupled
     to a reservoir of bosonic modes, to a 1D chain and performing time evolution
@@ -39,8 +41,11 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
         j (types.LambdaType): spectral function J(omega) as defined in the paper
         domain (list[float]): Domain on which j is defined,
             for example [0, np.inf]
-        ts (list of float): The times for which the evolution should
-            be computed.
+        ts_full (list of float): The times for which the evolution should
+            be computed and the whole state chain returned.
+        ts_system (list[float]): The times for which the evolution should be
+            computed and the reduced density matrix of only the system should be
+            returned.
         g (float): Constant g, assuming that for J(omega) it is g(omega)=g*omega
         trotter_order (int):
             Order of trotter to be used. Currently only 2 and 4
@@ -75,12 +80,16 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
 
     if v:
         print("Calculating the TEDOPA mapping...")
-    singlesite_ops, twosite_ops = _get_operators(h_loc, a, state_shape,
-                                                 j, domain, g, ncap)
+    singlesite_ops, twosite_ops = map(h_loc, a, state_shape,
+                                      j, domain, g, ncap)
     if v:
         print("Proceeding to tmps...")
-    times, states, compr_errors, trot_errors = tmps.evolve(
+
+    ts, subsystems = get_times(ts_full, ts_system, len(state), 0, 1)
+
+    times, subsystems, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
+        subsystems=subsystems,
         num_trotter_slices=num_trotter_slices, method=method,
         trotter_compr=trotter_compr, trotter_order=trotter_order,
         compr=compr, v=v)
@@ -88,7 +97,8 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain, ts, g,
 
 
 def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
-            domains, ts, gs=(1, 1), trotter_order=2, num_trotter_slices=100,
+            domains, ts_full, ts_system, gs=(1, 1), trotter_order=2,
+            num_trotter_slices=100,
             ncap=60000, v=False):
     """
     Mapping the Hamiltonian of a system composed of two sites, each linearly
@@ -107,8 +117,8 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
         method (str): The form of the state, determining the method used
             in the calculations. Either 'mpo' or 'pmps'.
         sys_position (int): Which index, in the chain representing the state, is
-            the position of the first site of the system (first would be 1,
-            not 0). E.g. 3 if the chain sites are
+            the position of the first site of the system (first would be 0).
+            E.g. 2 if the chain sites are
             environment-environment-system-system-environment-environment
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
@@ -122,8 +132,11 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
             environments as defined in the paper
         domains (list[list[float]]): Domains on which the js are defined,
             for example [[0, np.inf], [0,1]]
-        ts (list[float]): The times for which the evolution should
-            be computed.
+        ts_full (list of float): The times for which the evolution should
+            be computed and the whole state chain returned.
+        ts_system (list[float]): The times for which the evolution should be
+            computed and the reduced density matrix of only the system should be
+            returned.
         gs (list[float]): Constant g, assuming that for J(omega) it is
             g(omega) = g * omega
         trotter_order (int):
@@ -151,31 +164,37 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
     if v:
         print("Calculating the TEDOPA mapping...")
         print(state.ranks)
-    left_ops = _get_operators(np.zeros([state_shape[sys_position - 1][0]] * 2),
-                              a[0], list(reversed(state_shape[:sys_position:])),
-                              js[0], domains[0], gs[0], ncap)
+    left_ops = map(np.zeros([state_shape[sys_position][0]] * 2),
+                   a[0], list(reversed(state_shape[:sys_position + 1:])),
+                   js[0], domains[0], gs[0], ncap)
     singlesite_ops_left, twosite_ops_left = [list(reversed(i)) for i in
                                              left_ops]
     singlesite_ops_right, twosite_ops_right = \
-        _get_operators(np.zeros([state_shape[sys_position][0]] * 2), a[1],
-                       list(state_shape[sys_position::]), js[1], domains[1],
-                       gs[1], ncap)
+        map(np.zeros([state_shape[sys_position + 1][0]] * 2), a[1],
+            list(state_shape[sys_position + 1::]), js[1], domains[1],
+            gs[1], ncap)
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
     twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
 
     if v:
         print("Proceeding to tmps...")
-    times, states, compr_errors, trot_errors = tmps.evolve(
+
+    ts, subsystems = get_times(ts_full, ts_system, len(state), sys_position, 2)
+
+    times, subsystems, states, compr_errors, trot_errors = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
-        num_trotter_slices=num_trotter_slices, method=method,
-        trotter_compr=trotter_compr, trotter_order=trotter_order,
+        subsystems=subsystems, num_trotter_slices=num_trotter_slices,
+        method=method, trotter_compr=trotter_compr, trotter_order=trotter_order,
         compr=compr, v=v)
     return times, states
 
 
-def _get_operators(h_loc, a, state_shape, j, domain, g, ncap):
+def map(h_loc, a, state_shape, j, domain, g, ncap):
     """
-    Get the operators acting on the chain
+    Map the Hamiltonian of a system composed of one site, linearly coupled
+    to a reservoir of bosonic modes, to a 1D chain, i.e. calculate the operators acting on
+    every single site of the resulting chain and calculate the operators
+    acting on every two adjacent sites in the chain.
 
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian
@@ -199,7 +218,7 @@ def _get_operators(h_loc, a, state_shape, j, domain, g, ncap):
     bs = [_get_annihilation_op(dim) for dim in dims_chain[1::]]
     b_daggers = [b.T for b in bs]
     return _get_singlesite_ops(h_loc, params, bs, b_daggers), \
-        _get_twosite_ops(a, params, bs, b_daggers)
+           _get_twosite_ops(a, params, bs, b_daggers)
 
 
 def _get_singlesite_ops(h_loc, params, bs, b_daggers):
@@ -246,7 +265,7 @@ def _get_twosite_ops(a, params, bs, b_daggers):
     omegas, ts, c0 = params
     twosite_ops = [ts[i] * (
         np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for
-        i in range(len(bs) - 1)]
+                   i in range(len(bs) - 1)]
     twosite_ops = [c0 * np.kron(a, bs[0] + b_daggers[0])] + twosite_ops
 
     return twosite_ops
@@ -295,3 +314,29 @@ def _get_annihilation_op(dim):
     for i in range(dim - 1):
         op[i, i + 1] = np.sqrt(i + 1)
     return op
+
+
+def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
+    """
+    This is a function specifically designed for TEDOPA systems. It calculates
+    the proper 'ts' and 'subsystems' input lists for tmps.evolve() from a
+    list of times where the full state shall be returned and a list of times
+    where only the reduced state of the system in question shall be returned.
+
+    Args:
+        ts_full (list[float]): List of times where the full state including
+            environment chain should be returned
+        ts_part (list[float]): List of times where only the reduced density
+            matrix of the system should be returned
+        len_state: The length of the state
+        sys_position: The position of the system (first site would be 0)
+
+    Returns:
+        tuple(list[float], list[list[int]]):
+            Times and subsystems in the form that has to be provided to
+            tmps.evolve()
+    """
+    ts = list(ts_full) + list(ts_system)
+    subsystems = [[0, len_state]] * len(ts_full) + \
+                 [[sys_position, sys_position + sys_length]] * len(ts_system)
+    return ts, subsystems

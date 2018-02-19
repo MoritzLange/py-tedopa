@@ -3,6 +3,7 @@ Functions to calculate the time evolution of an operator in MPO or PMPS form
 from Hamiltonians acting on every single and every two adjacent sites.
 """
 from itertools import repeat
+from collections import Counter
 
 import numpy as np
 from scipy.linalg import expm
@@ -102,7 +103,8 @@ def _time_evolution(state, u, ts, tau, method, compr):
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
 
 
-def _times_to_steps(times, num_trotter_slices):
+def _times_to_steps(times, subsystems,
+                    num_trotter_slices):
     """
     Calculate the respective Trotter steps for the given times for which
     evolution should be computed.
@@ -110,18 +112,20 @@ def _times_to_steps(times, num_trotter_slices):
     would be times=[33, 83, 100]
 
     Args:
-        times (list of float):
-            The times for which the evolution should be computed
-        num_trotter_slices (int):
-            The number of time steps or Trotter slices for the time evolution
+        As defined in evolve()
 
     Returns:
-        tuple[list[int], float]: times, tau = maximal t / num_trotter_slices
+        tuple[list[int], list[list[int]], float]: times, sites for which the
+        subsystem should be returned at the respective time,
+        tau = maximal t / num_trotter_slices
     """
+    if type(subsystems[0]) != list:
+        subsystems = [subsystems] * len(times)
+    subsystems = [x for _, x in sorted(zip(times, subsystems))]
     times.sort()
     tau = times[-1] / num_trotter_slices
     ts = [int(round(t / tau)) for t in times]
-    return ts, tau
+    return ts, subsystems, tau
 
 
 def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
@@ -310,10 +314,10 @@ def _u_list_to_mpo(dims, u_odd, u_even, compr):
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
-        for i, u in enumerate(u_odd))
+                   for i, u in enumerate(u_odd))
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
-        for i, u in enumerate(u_even))
+                    for i, u in enumerate(u_even))
     even = mp.chain([mp.eye(1, dims[0]), even])
     if len(u_odd) > len(u_even):
         even = mp.chain([even, mp.eye(1, dims[-1])])
@@ -413,7 +417,7 @@ def _compress(state, method, compr):
 def _normalize(state, method):
 =======
         state (mpnum.MPArray): The state to be compressed
-        method (str): Whether the state is MPO or PMPS
+        method (str): Whether the state is MPS, MPO or PMPS
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
@@ -434,6 +438,7 @@ def normalize(state, method):
 
     Args:
         state (mpnum.MPArray): The state to be normalized
+<<<<<<< HEAD
         method (str): Whether it is a MPO or PMPS state
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -443,19 +448,23 @@ def normalize(state, method):
 =======
 
 >>>>>>> b2002c6... Improved the documentation where necessary
+=======
+        method (str): Whether it is a MPS, MPO or PMPS state
+
+>>>>>>> f62bd87... Added possibility to return subsystems after time evolution
     Returns:
         mpnum.MPArray: The normalized state
 >>>>>>> 983b6c2... Rewrote tedopa/tedopa.py
     """
-    if method == 'pmps':
+    if method == 'pmps' or method == 'mps':
         state = state / mp.norm(state)
     if method == 'mpo':
         state = state / mp.trace(state)
     return state
 
 
-def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
-           trotter_order, compr, v=False):
+def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
+           trotter_order, compr, ts, subsystems=None, v=False):
     """
     Evolve a state using tMPS.
 
@@ -470,17 +479,10 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
             H_ij], or a list containing a list of Hamiltonians acting on the
             single sites and a list of Hamiltonians acting on each two adjacent
             sites, like [[h1, h2, h3, ...], [h12, h23, h34, ...]]
-        ts (list of float):
-            The times for which the evolution should be computed. The
-            algorithm will calculate the evolution using the given number of
-            Trotter steps for the largest number in ts. On the way there
-            it will store the evolved states for smaller times.
-                NB: Beware of memory overload since len(t)
-                mpnum.MPArrays will be stored
         num_trotter_slices (int): Number of Trotter slices to be used for the
             largest t in ts.
         method (str):
-            Which method to use. Either 'mpo' or 'pmps'.
+            Which method to use. Either 'mps', 'mpo' or 'pmps'.
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter
         trotter_order (int):
@@ -489,18 +491,47 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
+        ts (list of float):
+            The times for which the evolution should be computed and the
+            state of the full system or a subsystem returned (i.e. it's reduced
+            density matrix (for now only works with method='mpo'. If the
+            method is not mpo, omit subsystems)). The algorithm will
+            calculate the evolution using the given number of Trotter steps
+            for the largest number in ts. On the way there it will store the
+            evolved states for smaller times.
+                NB: Beware of memory overload since len(t)
+                mpnum.MPArrays will be stored
+        subsystems (list):
+            A list defining for which subsystem the reduced density matrix or
+            whether the full state should be returned for a time in ts.
+            This can be a list of the length of ts looking like
+            [[a1, b1], [a2, b2], ...] or just a list like [a, b]. In the first
+            case the respective subsystem for every entry in ts
+            will be returned, in the second case the same subsystem will be
+            returned for all entries in ts.
+            [a, b] will lead to a return of the reduced density matrix of the
+            sites from a up to, but not including, b. For example [0, 3] if the
+            reduced density matrix of the first three sites shall be returned.
+            A time can occur twice in ts and then different subsystems to
+            be returned can be defined for that same time.
+            If this parameter is omitted, the full system will be returned for
+            every time in ts.
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
 
     Returns:
-        list[list[float], list[mpnum.MPArray], list[float], list[float]]:
-            A list of four items: (i) The list of times for which the density
-            matrices have been computed (ii) The list of density matrices as MPO
-            or PMPS as mpnum.MPArray, depending on the input "method" (iii) The
-            errors due to compression during the procedure (iv) The order of
-            error due to application of Trotter during the procedure
+        list[list[float], list[list[int]], list[mpnum.MPArray], list[float],
+        list[float]]:
+            A list with five items: (i)The list of times for which the density
+            matrices have been computed (ii) The list indicating which
+            subsystems of the system are returned at the respective
+            time of the first list (iii) The list of density matrices as MPO
+            or PMPS as mpnum.MPArray, depending on the input "method". If
+            that was MPS, the full states will still be MPSs, the reduced
+            ones will be MPOs. (iv) The errors due to compression during the
+            procedure (v) The order of errors due to application of Trotter
+            during the procedure
     """
-    # ToDo: See if normalization is in fact in place
     # ToDo: Maybe add support for hamiltonians depending on time
     # ToDo:     (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
@@ -511,7 +542,9 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
     if (np.array(ts) == 0).all():
         raise ValueError(
             "No time evolution requested by the user. Check your input 't'")
-    ts, tau = _times_to_steps(ts, num_trotter_slices)
+    if subsystems == None:
+        subsystems = [0, len(state)]
+    ts, subsystems, tau = _times_to_steps(ts, subsystems, num_trotter_slices)
     u = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                        num_sites=len(state), trotter_order=trotter_order,
                        compr=compr)
@@ -520,10 +553,11 @@ def evolve(state, hamiltonians, ts, num_trotter_slices, method, trotter_compr,
         print("Time evolution operator for Trotter slice calculated, "
               "starting "
               "Trotter iterations...")
-    return _time_evolution(state, u, ts, tau, method, trotter_compr, v)
+    return _time_evolution(state, u, ts, subsystems, tau, method,
+                           trotter_compr, v)
 
 
-def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
+def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
     """
     Do the actual time evolution
 
@@ -534,6 +568,9 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
             Time evolution operator acting on the state
         ts (list of int):
             List of time steps as generated by _times_to_steps()
+        subsystems (list[list[int]]):
+            Sites for which the subsystem should be returned at the respective
+            time
         tau (float):
             As defined in _times_to_steps()
         method (str):
@@ -544,41 +581,47 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
             won't print anything)
 
     Returns:
-        list[list[float], list[mpnum.MPArray], list[float], list[float]]:
-            A list with four items: (i)The list of times for which the density
-            matrices have been computed (ii) The list of density matrices as MPO
-            or PMPS as mpnum.MPArray, depending on the input "method" (iii) The
-            errors due to compression during the procedure (iv) The order of
-            errors due to application of Trotter during the procedure
+        list[list[float], list[list[int]], list[mpnum.MPArray], list[float],
+        list[float]]:
+            A list with five items: (i)The list of times for which the density
+            matrices have been computed (ii) The list indicating which
+            subsystems of the system are returned at the respective
+            time of the first list (iii) The list of density matrices as MPO
+            or PMPS as mpnum.MPArray, depending on the input "method". If
+            that was MPS, the full states will still be MPSs, the reduced
+            ones will be MPOs. (iv) The errors due to compression during the
+            procedure (v) The order of errors due to application of Trotter
+            during the procedure
     """
-    times = [0] if ts[0] == 0 else []
-    states = [state] if ts[0] == 0 else []
-    compr_errors = [0] if ts[0] == 0 else []
-    trot_errors = [0] if ts[0] == 0 else []
+    c = Counter(ts)
+
+    times = []
+    states = []
+    compr_errors = []
+    trot_errors = []
 
     if method == 'mpo':
         u_dagger = u.T.conj()
     accumulated_overlap = 1
     accumulated_trotter_error = 0
-    for i in range(ts[-1]):
+
+    for i in range(ts[-1] + 1):
+        for j in range(c[i]):
+            _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
+                    subsystems, state, accumulated_overlap,
+                    accumulated_trotter_error, method)
         state = mp.dot(u, state)
         if method == 'mpo':
             state = mp.dot(state, u_dagger)
         accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)
         accumulated_trotter_error += tau ** 3
-        if i + 1 in ts:
-            times.append(tau * (i + 1))
-            states.append(state.copy())
-            compr_errors.append(accumulated_overlap)
-            trot_errors.append(accumulated_trotter_error)
         if v and np.sqrt(i) % 1 == 0 and i != 0:
-            print(str(i) + " Trotter "
-                  "iterations "
-                  "finished...")
+            print(str(i) + " Trotter iterations finished...")
             print(state.lt.shape)
     if v:
         print("Done with time evolution")
+<<<<<<< HEAD
     return times, states, compr_errors, trot_errors
 =======
 
@@ -589,3 +632,53 @@ def _time_evolution(state, u, ts, tau, method, trotter_compr, v):
     if method == 'mpo': state = state / mp.trace(state)
     return state
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
+=======
+    return times, subsystems, states, compr_errors, trot_errors
+
+
+def _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
+            subsystems, state, accumulated_overlap,
+            accumulated_trotter_error, method):
+    """
+    Function to append the time evolved state and related information to the
+    output lists of _time_evolution()
+
+    Args:
+        times (list[float]): List containing the times to which the states are
+            evolved
+        states (list[mpnum.MPArray]): List containing the evolved states
+        compr_errors (list[float]): List containing the respective compression
+            errors
+        trot_errors (list[float]): List containing the respective Trotter errors
+        tau (float): The time of one Trotter slice
+        i (int): Number indicating which is the current Trotter slice
+        j (int): Number indicating how many times a state related to the
+            current i has been appended already
+        ts (list[int]): List containing the time steps
+        subsystems (list[list[int]]): List of sites for which the subsystem
+            should be returned at the respective time
+        state (mpnum.MPArray): The current state
+        accumulated_overlap (float): The accumulated overlap error
+        accumulated_trotter_error (float): The accumulated Trotter error
+        method (str): Method to use as defined in evolve()
+
+    Returns:
+        None: Nothing, changes happen in place
+
+    """
+    times.append(tau * i)
+    sites = [x for t, x in zip(ts, subsystems) if t == i][j]
+    if sites == [0, len(state)]:
+        states.append(state.copy())
+    elif method == 'mpo':
+        states.append(next(
+            mp.reductions_mpo(state, sites[1] - sites[0], [sites[0]])))
+    elif method == 'pmps':
+        states.append(next(
+            mp.reductions_pmps(state, sites[1] - sites[0], [sites[0]])))
+    elif method == 'mps':
+        states.append(next(
+            mp.reductions_mps_as_mpo(state, sites[1] - sites[0], [sites[0]])))
+    compr_errors.append(accumulated_overlap)
+    trot_errors.append(accumulated_trotter_error)
+>>>>>>> f62bd87... Added possibility to return subsystems after time evolution
