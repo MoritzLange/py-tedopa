@@ -544,6 +544,9 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             "No time evolution requested by the user. Check your input 't'")
     if subsystems == None:
         subsystems = [0, len(state)]
+    if num_trotter_slices < len(ts):
+        raise ValueError("The number of Trotter slices must be bigger than or "
+                         "equal to the number of values in ts.")
     ts, subsystems, tau = _times_to_steps(ts, subsystems, num_trotter_slices)
     u = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                        num_sites=len(state), trotter_order=trotter_order,
@@ -554,10 +557,11 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
               "starting "
               "Trotter iterations...")
     return _time_evolution(state, u, ts, subsystems, tau, method,
-                           trotter_compr, v)
+                           trotter_compr, compr, v)
 
 
-def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
+def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr,
+                    compr, v):
     """
     Do the actual time evolution
 
@@ -577,6 +581,9 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
             Method to use as defined in evolve()
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
 
@@ -612,13 +619,13 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
                     accumulated_trotter_error, method)
         state = mp.dot(u, state)
         if method == 'mpo':
+            state = _compress(state, method, compr)
             state = mp.dot(state, u_dagger)
         accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)
         accumulated_trotter_error += tau ** 3
         if v and np.sqrt(i) % 1 == 0 and i != 0:
             print(str(i) + " Trotter iterations finished...")
-            print(state.lt.shape)
     if v:
         print("Done with time evolution")
 <<<<<<< HEAD

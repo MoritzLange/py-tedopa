@@ -163,7 +163,6 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
     # ToDo: Implement some checks, like above
     if v:
         print("Calculating the TEDOPA mapping...")
-        print(state.ranks)
     left_ops = map(np.zeros([state_shape[sys_position][0]] * 2),
                    a[0], list(reversed(state_shape[:sys_position + 1:])),
                    js[0], domains[0], gs[0], ncap)
@@ -291,8 +290,6 @@ def _get_parameters(n, j, domain, g, ncap):
     """
     alphas, betas = rc.recurrenceCoefficients(n, lb=domain[0],
                                               rb=domain[1], j=j, g=g, ncap=ncap)
-    print("alphas = " + str(alphas))
-    print("betas = " + str(betas))
     omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
     c0 = np.sqrt(betas[0])
