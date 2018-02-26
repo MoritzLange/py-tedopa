@@ -50,7 +50,7 @@ class TestTMPS(object):
             assert np.isclose(1, fidelities[i], rtol=self.precision)
 
     def test_pmps_trotter2(self):
-        n = 4  # number of sites
+        n = 5  # number of sites
 
         state = self.state(n=n)
         J = 1
@@ -87,7 +87,7 @@ class TestTMPS(object):
             assert np.isclose(1, fidelities[i], rtol=self.precision)
 
     def test_pmps_trotter4(self):
-        n = 4  # number of sites
+        n = 5  # number of sites
 
         state = self.state(n=n)
         J = 1

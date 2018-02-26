@@ -17,7 +17,7 @@ from tedopa import tmps
 
 def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
             ts_full, ts_system, g, trotter_order=2, num_trotter_slices=100,
-            ncap=60000, v=False):
+            ncap=20000, v=False):
     """
     Mapping the Hamiltonian of a system composed of one site, linearly coupled
     to a reservoir of bosonic modes, to a 1D chain and performing time evolution
@@ -99,7 +99,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
 def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
             domains, ts_full, ts_system, gs=(1, 1), trotter_order=2,
             num_trotter_slices=100,
-            ncap=60000, v=False):
+            ncap=20000, v=False):
     """
     Mapping the Hamiltonian of a system composed of two sites, each linearly
     coupled to a reservoir of bosonic modes, to a 1D chain and performing
@@ -276,7 +276,8 @@ def _get_parameters(n, j, domain, g, ncap):
 
     Args:
         n (int): Number of recursion coefficients required
-            (rc.recursionCoefficients() actually returns one more)
+            (rc.recursionCoefficients() actually returns one more and the
+            system site does not need one, so the argument n-2 is passed)
         j (types.LambdaType): spectral function J(omega) as defined in the paper
         domain (list[float]): Domain on which j is defined,
             for example [0, np.inf]
@@ -288,8 +289,10 @@ def _get_parameters(n, j, domain, g, ncap):
         list[list[float], list[float], float]:
             omegas, ts, c0 as defined in the paper
     """
-    alphas, betas = rc.recurrenceCoefficients(n, lb=domain[0],
-                                              rb=domain[1], j=j, g=g, ncap=ncap)
+    alphas, betas = rc.recurrenceCoefficients(n - 2, lb=domain[0], rb=domain[1],
+                                              j=j, g=g, ncap=ncap)
+    print("alphas =", alphas)
+    print("betas =", betas)
     omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
     c0 = np.sqrt(betas[0])

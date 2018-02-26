@@ -183,10 +183,13 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
             The time evolution operator u for one Trotter slice
     """
     h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
-    dims, u_odd, u_even = _get_u_list(h_single, h_adjacent, tau=tau)
-    u_odd, u_even = _u_list_to_mpo(dims, u_odd, u_even, compr)
+    dims = [len(h_single[i]) for i in range(len(h_single))]
+    u_odd_list = _get_u_list_odd(dims, h_single, h_adjacent, tau=tau / 2)
+    u_even_list = _get_u_list_even(dims, h_single, h_adjacent, tau=tau)
+    u_odd = _u_list_to_mpo_odd(dims, u_odd_list, compr)
+    u_even = _u_list_to_mpo_even(dims, u_even_list, compr)
     u = mp.dot(u_odd, u_even)
-    u = _compress(u, 'mpo', compr)
+    u.compress(**compr)
     u = mp.dot(u, u_odd)
     return u
 
@@ -210,19 +213,28 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     Returns:
         mpnum.MPArray: The time evolution operator u for one Trotter slice
     """
-    taus = [tau / (4 - 4 ** (1 / 3)), tau / (4 - 4 ** (1 / 3)),
-            tau - 4 * tau / (4 - 4 ** (1 / 3))]
+    taus_for_odd = [tau * .5 / (4 - 4 ** (1 / 3)),
+                    tau / (4 - 4 ** (1 / 3)),
+                    tau * .5 * (1 - 3 / (4 - 4 ** (1 / 3)))]
+    taus_for_even = [tau / (4 - 4 ** (1 / 3)),
+                     tau * (1 - 4 / (4 - 4 ** (1 / 3)))]
     h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
-    u_lists = [_get_u_list(h_single, h_adjacent, tau=tau) for tau in taus]
-    u_mpos = [_u_list_to_mpo(*element, compr=compr) for element in
-              u_lists]
-    u_parts = [mp.dot(mp.dot(element[0], element[1]), element[0])
-               for element in u_mpos]
-    u_parts = [_compress(u, 'mpo', compr) for u in u_parts]
-    u = mp.dot(u_parts[0], u_parts[1])
-    for i in range(2, -1, -1):
-        u = _compress(u, 'mpo', compr)
-        u = mp.dot(u, u_parts[i])
+    dims = [len(h_single[i]) for i in range(len(h_single))]
+    u_odd_lists = [_get_u_list_odd(dims, h_single, h_adjacent, t) for t in
+                   taus_for_odd]
+    u_even_lists = [_get_u_list_even(dims, h_single, h_adjacent, t) for t in
+                    taus_for_even]
+    u = _u_list_to_mpo_odd(dims, u_odd_lists[0], compr)
+    multiplication_order = [0, 1, 0, 2, 1, 2, 0, 1, 0, 0]
+    for i in range(10):
+        if i % 2 == 0:
+            u_part = _u_list_to_mpo_even(
+                dims, u_even_lists[multiplication_order[i]], compr)
+        else:
+            u_part = _u_list_to_mpo_odd(
+                dims, u_odd_lists[multiplication_order[i]], compr)
+        u = mp.dot(u, u_part)
+        u.compress(**compr)
     return u
 
 
@@ -254,60 +266,86 @@ def _get_h_list(hs, num_sites):
     return hs[0], hs[1]
 
 
-def _get_u_list(h_single, h_adjacent, tau):
+def _get_u_list_odd(dims, h_single, h_adjacent, tau):
     """
-    Calculates time evolution operators from Hamiltonians. The time evolution
-    operators acting on odd sites contain a factor .5 for the second order
-    Trotter.
+    Calculates time evolution operators for adjacent odd sites from
+    Hamiltonians.
 
     Args:
+        dims (list):
+            The dimensions of the single sites of the state U will be applied to
         h_single (list):
             The Hamiltonians acting on every single site
         h_adjacent (list):
             The Hamiltonians acting on every two adjacent sites
         tau (float):
-            As defined in _times_to_steps()
+            The time step for the time evolution of U
 
     Returns:
-        list[list(int), list[numpy.ndarray], list[numpy.ndarray]]:
-            A list with three items: (i) List of dimensions of each site and
-            lists of time evolution operators. (ii) List of operators acting on
-            odd adjacent sites, like [u12, u34, ...] (iii) List of operators
-            acting on even adjacent sites, like [u23, u45, ...]
+        list[numpy.ndarray]:
+            List of operators acting on odd adjacent sites, like [u12, u34, ...]
     """
-    dims = [len(h_single[i]) for i in range(len(h_single))]
-    h_2sites = [np.kron(h_single[i], np.identity(len(h_single[i + 1]))) +
-                np.kron(np.identity(len(h_single[i])), h_single[i + 1])
-                for i in range(0, len(h_single) - 1, 2)]
-    u_odd = list(expm(-1j * tau / 2 * (h + h_2sites[i]))
+    h_2sites = [
+        1 / 2 * (np.kron(h_single[i], np.identity(dims[i + 1])) +
+                 np.kron(np.identity(dims[i]), h_single[i + 1]))
+        for i in range(0, len(h_single) - 1, 2)]
+    u_odd = list(expm(-1j * tau * (h + h_2sites[i]))
                  for i, h in enumerate(h_adjacent[::2]))
-    u_even = list(expm(-1j * tau * h) for h in h_adjacent[1::2])
-    if len(u_odd) == len(u_even):
-        u_odd = u_odd + [expm(-1j * tau / 2 * h_single[-1])]
-    return dims, u_odd, u_even
+    if len(dims) % 2 == 1:
+        u_odd = u_odd + [expm(-1j * tau * h_single[-1] / 2)]
+    return u_odd
 
 
-def _u_list_to_mpo(dims, u_odd, u_even, compr):
+def _get_u_list_even(dims, h_single, h_adjacent, tau):
     """
-    Transforms the matrices for time evolution to operators acting on the full
-    state
+    Calculates time evolution operators for adjacent even sites from
+    Hamiltonians.
+
+    Args:
+        dims (list):
+            The dimensions of the single sites of the state U will be applied to
+        h_single (list):
+            The Hamiltonians acting on every single site
+        h_adjacent (list):
+            The Hamiltonians acting on every two adjacent sites
+        tau (float):
+            The time step for the time evolution of U
+
+    Returns:
+        list[numpy.ndarray]:
+            List of operators acting on even adjacent sites, like
+            [u23, u45, ...]
+    """
+    h_2sites = [
+        1 / 2 * (np.kron(h_single[i], np.identity(dims[i + 1])) +
+                 np.kron(np.identity(dims[i]), h_single[i + 1]))
+        for i in range(1, len(h_single) - 1, 2)]
+    u_even = list(expm(-1j * tau * (h + h_2sites[i])) for i, h in
+                  enumerate(h_adjacent[1::2]))
+    u_even = [expm(-1j * tau * h_single[0] / 2)] + u_even
+    if len(dims) % 2 == 0:
+        u_even = u_even + [expm(-1j * tau * h_single[-1] / 2)]
+    return u_even
+
+
+def _u_list_to_mpo_odd(dims, u_odd, compr):
+    """
+    Transforms a list of matrices for time evolution on odd sites to operators
+    acting on the full state.
 
     Args:
         dims (list):
             List of dimensions of each site
         u_odd (list):
             List of time evolution operators acting on odd adjacent sites
-        u_even (list):
-            List of time evolution operators acting on even adjacent sites
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation
             where trotter_compr is used
 
     Returns:
-        list[list[mpnum.MPArray], list[mpnum.MPArray]]:
-            A list of two mparrays. (i) The time evolution MPOs for the full
-            state acting on odd adjacent sites (ii) The time evolution MPOs for
-            the full state acting on even adjacent sites
+        mpnum.MPArray:
+            The time evolution MPO for the full state acting on odd adjacent
+            sites
     """
     if len(dims) % 2 == 1:
         last_h = u_odd[-1]
@@ -315,15 +353,40 @@ def _u_list_to_mpo(dims, u_odd, u_even, compr):
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
                    for i, u in enumerate(u_odd))
+    if len(dims) % 2 == 1:
+        odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
+    return odd
+
+
+def _u_list_to_mpo_even(dims, u_even, compr):
+    """
+    Transforms a list of matrices for time evolution on even sites to operators
+    acting on the full state.
+
+    Args:
+        dims (list):
+            List of dimensions of each site
+        u_even (list):
+            List of time evolution operators acting on even adjacent sites
+        compr (dict): Parameters for the compression which is executed on every
+            MPA during the calculations, except for the Trotter calculation
+            where trotter_compr is used
+
+    Returns:
+        mpnum.MPArray:
+            The time evolution MPO for the full state acting on even adjacent
+            sites
+    """
+    if len(dims) % 2 == 0:
+        last_h = u_even[-1]
+        u_even = u_even[:-1]
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
-                    for i, u in enumerate(u_even))
-    even = mp.chain([mp.eye(1, dims[0]), even])
-    if len(u_odd) > len(u_even):
-        even = mp.chain([even, mp.eye(1, dims[-1])])
-    elif len(u_even) == len(u_odd):
-        odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
-    return odd, even
+                    for i, u in enumerate(u_even[1::]))
+    even = mp.chain([matrix_to_mpo(u_even[0], [[dims[0]] * 2], compr), even])
+    if len(dims) % 2 == 0:
+        even = mp.chain([even, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
+    return even
 
 
 def matrix_to_mpo(matrix, shape, compr=None):
@@ -362,6 +425,7 @@ def matrix_to_mpo(matrix, shape, compr=None):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     _compress(mpo, 'mpo')
 =======
     mpo = compress_losslessly(mpo, 'mpo')
@@ -376,10 +440,14 @@ def matrix_to_mpo(matrix, shape, compr=None):
 =======
     mpo = _compress(mpo, 'mpo', compr)
 >>>>>>> 708c0ab... Minor improvements to code and documentation
+=======
+    mpo.compress(**compr)
+>>>>>>> 01d777d... Improved time evolution code
     return mpo
 
 
 # Does this work, is state mutable and this operation in place?
+<<<<<<< HEAD
 
 
 <<<<<<< HEAD
@@ -425,12 +493,16 @@ def _normalize(state, method):
     Returns:
         mpnum.MPArray: The compressed state
     """
+    if len(state) == 1:
+        return state
     state.compress(**compr)
     state = normalize(state, method)
     return state
 
 
 # Does this work, is state mutable and this operation in place?
+=======
+>>>>>>> 01d777d... Improved time evolution code
 def normalize(state, method):
 >>>>>>> bc32d2e... Added the mapping of the Hamiltonian to tedopa/tedopa.py
     """
@@ -536,7 +608,8 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
     # ToDo:     (if not too complicated)
     # ToDo: Make sure the hamiltonians are of the right dimension
     # ToDo: Implement tracking of errors properly
-    state = _compress(state, method, compr)
+    state.compress(**compr)
+    state = normalize(state, method)
     if len(state) < 3:
         raise ValueError("State has too few sites")
     if (np.array(ts) == 0).all():
@@ -551,7 +624,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
     u = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                        num_sites=len(state), trotter_order=trotter_order,
                        compr=compr)
-    u = _compress(u, 'mpo', compr)
+    u.compress(**compr)
     if v:
         print("Time evolution operator for Trotter slice calculated, "
               "starting "
@@ -619,7 +692,7 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr,
                     accumulated_trotter_error, method)
         state = mp.dot(u, state)
         if method == 'mpo':
-            state = _compress(state, method, compr)
+            state.compress(**compr)
             state = mp.dot(state, u_dagger)
         accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)
