@@ -291,8 +291,6 @@ def _get_parameters(n, j, domain, g, ncap):
     """
     alphas, betas = rc.recurrenceCoefficients(n - 2, lb=domain[0], rb=domain[1],
                                               j=j, g=g, ncap=ncap)
-    print("alphas =", alphas)
-    print("betas =", betas)
     omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
     c0 = np.sqrt(betas[0])
