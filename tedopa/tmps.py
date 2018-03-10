@@ -410,7 +410,7 @@ def matrix_to_mpo(matrix, shape, compr=None):
             The MPO representing the matrix
     """
     if compr == None:
-        compr = dict(method='svd', relerr=1e-6)
+        compr = dict(method='svd', relerrs=1e-6)
     num_legs = len(shape[0])
     if not (np.array([len(shape[i]) for i in
                       range(len(shape))]) == num_legs).all():
@@ -556,7 +556,9 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
         method (str):
             Which method to use. Either 'mps', 'mpo' or 'pmps'.
         trotter_compr (dict):
-            Compression parameters used in the iterations of Trotter
+            Compression parameters used in the iterations of Trotter.
+            Startmpa will be set by the algorithm, does not need to be
+            specified.
         trotter_order (int):
             Order of trotter to be used. Currently only 2 and 4
             are implemented
@@ -630,11 +632,10 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
               "starting "
               "Trotter iterations...")
     return _time_evolution(state, u, ts, subsystems, tau, method,
-                           trotter_compr, compr, v)
+                           trotter_compr, v)
 
 
-def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr,
-                    compr, v):
+def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
     """
     Do the actual time evolution
 
@@ -654,9 +655,6 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr,
             Method to use as defined in evolve()
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter
-        compr (dict): Parameters for the compression which is executed on every
-            MPA during the calculations, except for the Trotter calculation
-            where trotter_compr is used
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
 
@@ -674,6 +672,7 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr,
             during the procedure
     """
     c = Counter(ts)
+    print(u.ranks)
 
     times = []
     states = []
@@ -682,17 +681,25 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr,
 
     if method == 'mpo':
         u_dagger = u.T.conj()
+    var_compression = False
+    if trotter_compr['method'] == 'var':
+        var_compression = True
     accumulated_overlap = 1
     accumulated_trotter_error = 0
 
     for i in range(ts[-1] + 1):
+        print(state.ranks)
+        if var_compression:
+            trotter_compr['startmpa'] = mp.MPArray.copy(state)
         for j in range(c[i]):
             _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
                     subsystems, state, accumulated_overlap,
                     accumulated_trotter_error, method)
         state = mp.dot(u, state)
         if method == 'mpo':
-            state.compress(**compr)
+            accumulated_overlap *= state.compress(**trotter_compr)
+            if var_compression:
+                trotter_compr['startmpa'] = mp.MPArray.copy(state)
             state = mp.dot(state, u_dagger)
         accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)

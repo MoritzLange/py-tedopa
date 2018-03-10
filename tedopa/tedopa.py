@@ -31,8 +31,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
             in the calculations. Either 'mpo' or 'pmps'.
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
-            form used by
-            mpnum.compress())
+            form used by mpnum.compress())
         compr (dict): Parameters for the compression which is executed on every
             MPA during the calculations, except for the Trotter calculation,
             where trotter_compr is used.
