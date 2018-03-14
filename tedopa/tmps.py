@@ -149,7 +149,9 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
             where trotter_compr is used
 
     Returns:
-        mpnum.MPArray: The time evolution operator u for one Trotter slice
+        list[mpnum.MPArray]:
+            The time evolution operator parts, which, applied one after
+            another, give one Trotter slice
     """
     if trotter_order == 2:
         return _trotter_two(hamiltonians, tau, num_sites, compr)
@@ -179,8 +181,9 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
             where trotter_compr is used
 
     Returns:
-        mpnum.MPArray:
-            The time evolution operator u for one Trotter slice
+        list[mpnum.MPArray]:
+            The time evolution operator parts, which, applied one after
+            another, give one Trotter slice
     """
     h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
     dims = [len(h_single[i]) for i in range(len(h_single))]
@@ -188,10 +191,7 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
     u_even_list = _get_u_list_even(dims, h_single, h_adjacent, tau=tau)
     u_odd = _u_list_to_mpo_odd(dims, u_odd_list, compr)
     u_even = _u_list_to_mpo_even(dims, u_even_list, compr)
-    u = mp.dot(u_odd, u_even)
-    u.compress(**compr)
-    u = mp.dot(u, u_odd)
-    return u
+    return [u_odd, u_even, u_odd]
 
 
 def _trotter_four(hamiltonians, tau, num_sites, compr):
@@ -211,7 +211,9 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
             where trotter_compr is used
 
     Returns:
-        mpnum.MPArray: The time evolution operator u for one Trotter slice
+        list[mpnum.MPArray]:
+            The time evolution operator parts, which, applied one after
+            another, give one Trotter slice
     """
     taus_for_odd = [tau * .5 / (4 - 4 ** (1 / 3)),
                     tau / (4 - 4 ** (1 / 3)),
@@ -224,18 +226,18 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
                    taus_for_odd]
     u_even_lists = [_get_u_list_even(dims, h_single, h_adjacent, t) for t in
                     taus_for_even]
-    u = _u_list_to_mpo_odd(dims, u_odd_lists[0], compr)
-    multiplication_order = [0, 1, 0, 2, 1, 2, 0, 1, 0, 0]
-    for i in range(10):
-        if i % 2 == 0:
-            u_part = _u_list_to_mpo_even(
-                dims, u_even_lists[multiplication_order[i]], compr)
+    multiplication_order = [0, 0, 1, 0, 2, 1, 2, 0, 1, 0, 0]
+    us = []
+    for i in range(11):
+        if i % 2 == 1:
+            us = us + [_u_list_to_mpo_even(dims,
+                                           u_even_lists[
+                                               multiplication_order[i]],
+                                           compr)]
         else:
-            u_part = _u_list_to_mpo_odd(
-                dims, u_odd_lists[multiplication_order[i]], compr)
-        u = mp.dot(u, u_part)
-        u.compress(**compr)
-    return u
+            us = us + [_u_list_to_mpo_odd(
+                dims, u_odd_lists[multiplication_order[i]], compr)]
+    return us
 
 
 def _get_h_list(hs, num_sites):
@@ -410,7 +412,7 @@ def matrix_to_mpo(matrix, shape, compr=None):
             The MPO representing the matrix
     """
     if compr == None:
-        compr = dict(method='svd', relerrs=1e-6)
+        compr = dict(method='svd', relerr=1e-6)
     num_legs = len(shape[0])
     if not (np.array([len(shape[i]) for i in
                       range(len(shape))]) == num_legs).all():
@@ -619,31 +621,28 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             "No time evolution requested by the user. Check your input 't'")
     if subsystems == None:
         subsystems = [0, len(state)]
-    if num_trotter_slices < len(ts):
-        raise ValueError("The number of Trotter slices must be bigger than or "
-                         "equal to the number of values in ts.")
     ts, subsystems, tau = _times_to_steps(ts, subsystems, num_trotter_slices)
-    u = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
-                       num_sites=len(state), trotter_order=trotter_order,
-                       compr=compr)
-    u.compress(**compr)
+    us = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
+                        num_sites=len(state), trotter_order=trotter_order,
+                        compr=compr)
     if v:
         print("Time evolution operator for Trotter slice calculated, "
               "starting "
               "Trotter iterations...")
-    return _time_evolution(state, u, ts, subsystems, tau, method,
+    return _time_evolution(state, us, ts, subsystems, tau, method,
                            trotter_compr, v)
 
 
-def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
+def _time_evolution(state, us, ts, subsystems, tau, method, trotter_compr, v):
     """
     Do the actual time evolution
 
     Args:
         state (mpnum.MPArray):
             The state to be evolved in time
-        u (mpnum.MPArray):
-            Time evolution operator acting on the state
+        us (list[mpnum.MPArray]):
+            The time evolution operator parts, which, applied one after
+            another, give one Trotter slice
         ts (list of int):
             List of time steps as generated by _times_to_steps()
         subsystems (list[list[int]]):
@@ -672,15 +671,12 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
             during the procedure
     """
     c = Counter(ts)
-    print(u.ranks)
 
     times = []
     states = []
     compr_errors = []
     trot_errors = []
 
-    if method == 'mpo':
-        u_dagger = u.T.conj()
     var_compression = False
     if trotter_compr['method'] == 'var':
         var_compression = True
@@ -689,19 +685,21 @@ def _time_evolution(state, u, ts, subsystems, tau, method, trotter_compr, v):
 
     for i in range(ts[-1] + 1):
         print(state.ranks)
-        if var_compression:
-            trotter_compr['startmpa'] = mp.MPArray.copy(state)
         for j in range(c[i]):
             _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
                     subsystems, state, accumulated_overlap,
                     accumulated_trotter_error, method)
-        state = mp.dot(u, state)
-        if method == 'mpo':
-            accumulated_overlap *= state.compress(**trotter_compr)
+        for u in us:
             if var_compression:
                 trotter_compr['startmpa'] = mp.MPArray.copy(state)
-            state = mp.dot(state, u_dagger)
-        accumulated_overlap *= state.compress(**trotter_compr)
+            state = mp.dot(u, state)
+            accumulated_overlap *= state.compress(**trotter_compr)
+        if method == 'mpo':
+            for u in us:
+                if var_compression:
+                    trotter_compr['startmpa'] = mp.MPArray.copy(state)
+                state = mp.dot(state, u.T.conj())
+                accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)
         accumulated_trotter_error += tau ** 3
         if v and np.sqrt(i) % 1 == 0 and i != 0:

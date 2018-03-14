@@ -24,7 +24,7 @@ class TestTMPS(object):
 
         mpo_state = tmps.matrix_to_mpo(state, [[2, 2]] * n)
 
-        num_trotter_slices = 100
+        num_trotter_slices = 101
 
         times, sites, evolved_states, errors1, errors2 = \
             tmps.evolve(state=mpo_state, hamiltonians=[B * self.sx(),
@@ -61,7 +61,7 @@ class TestTMPS(object):
         mpo_state = tmps.matrix_to_mpo(state, [[2, 2]] * n)
         pmps_state = mp.mpo_to_pmps(mpo_state)
 
-        num_trotter_slices = 100
+        num_trotter_slices = 102
 
         times, sites, evolved_states, errors1, errors2 = \
             tmps.evolve(state=pmps_state, hamiltonians=[B * self.sx(),
@@ -98,7 +98,7 @@ class TestTMPS(object):
         mpo_state = tmps.matrix_to_mpo(state, [[2, 2]] * n)
         pmps_state = mp.mpo_to_pmps(mpo_state)
 
-        num_trotter_slices = 100
+        num_trotter_slices = 110
 
         times, sites, evolved_states, errors1, errors2 = \
             tmps.evolve(state=pmps_state, hamiltonians=[B * self.sx(),
