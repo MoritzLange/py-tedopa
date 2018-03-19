@@ -1,4 +1,4 @@
-TEDOPA Implementation
+py-tedopa Documentation
 =====================
 
 tedopa.tedopa module
@@ -20,10 +20,10 @@ tedopa.tmps module
     :private-members:
 
 
-tedopa._recursion_coefficients module
--------------------
+tedopa._recurrence_coefficients module
+--------------------------------------
 
-.. automodule:: tedopa._recursion_coefficients
+.. automodule:: tedopa._recurrence_coefficients
     :members:
     :undoc-members:
     :show-inheritance:

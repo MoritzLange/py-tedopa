@@ -1,5 +1,5 @@
 """
-Functions to calculate recursion coefficients, based on the package py-orthpol
+Functions to calculate recursion coefficients, based on the package py-orthpol.
 """
 import math
 
@@ -32,7 +32,7 @@ def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
         accuracy and the longer the execution time. Defaults to 60000.
 
     Returns:
-        list:
+        list[list[float], list[float]]:
             A list with two items: (i) alphas, which is one half of the n first
             recursion coefficients and (ii) betas, which is other half of the
             n first recursion coefficients
@@ -93,13 +93,13 @@ def _j_to_hsquared(func, lb, rb, g):
     the generated polynomials
 
     Args:
-        func:
+        func (types.LambdaType):
             J(omega)
-        lb:
+        lb (float):
             left boundary
-        rb:
+        rb (float):
             right boundary
-        g: factor
+        g (float): factor
 
     Returns:
 <<<<<<< HEAD

@@ -1,6 +1,8 @@
 """
-Implementation of the TEDOPA mapping, as described in
+Implementation of the chain mapping, as described in
+
 Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188
+
 tedopa1 and tedopa2 do the mapping and perform time evolution with it.
 """
 
@@ -40,7 +42,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
         j (types.LambdaType): spectral function J(omega) as defined in the paper
         domain (list[float]): Domain on which j is defined,
             for example [0, np.inf]
-        ts_full (list of float): The times for which the evolution should
+        ts_full (list[float]): The times for which the evolution should
             be computed and the whole state chain returned.
         ts_system (list[float]): The times for which the evolution should be
             computed and the reduced density matrix of only the system should be
@@ -131,7 +133,7 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
             environments as defined in the paper
         domains (list[list[float]]): Domains on which the js are defined,
             for example [[0, np.inf], [0,1]]
-        ts_full (list of float): The times for which the evolution should
+        ts_full (list[float]): The times for which the evolution should
             be computed and the whole state chain returned.
         ts_system (list[float]): The times for which the evolution should be
             computed and the reduced density matrix of only the system should be
@@ -290,15 +292,9 @@ def _get_parameters(n, j, domain, g, ncap):
     """
     alphas, betas = rc.recurrenceCoefficients(n - 2, lb=domain[0], rb=domain[1],
                                               j=j, g=g, ncap=ncap)
-    print("alphas=", alphas)
-    print("betas=", betas)
     omegas = g * np.array(alphas)
     ts = g * np.sqrt(np.array(betas)[1::])
-    print("omegas=", omegas)
-    print("ts=", ts)
     c0 = np.sqrt(betas[0])
-    print("c0=", c0)
-    exit()
     return omegas, ts, c0
 
 
@@ -331,8 +327,8 @@ def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
             environment chain should be returned
         ts_part (list[float]): List of times where only the reduced density
             matrix of the system should be returned
-        len_state: The length of the state
-        sys_position: The position of the system (first site would be 0)
+        len_state (int): The length of the state
+        sys_position (int): The position of the system (first site would be 0)
 
     Returns:
         tuple(list[float], list[list[int]]):
