@@ -571,7 +571,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
     Args:
         state (mpnum.MPArray):
             The state to be evolved in time(the density matrix, not state
-            vector). The state has to be an MPO or PMPS, depending on which
+            vector). The state has to be an MPS, MPO or PMPS, depending on which
             method is chosen
         hamiltonians (list):
             Either a list containing the Hamiltonian acting on every single site

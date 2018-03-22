@@ -10,20 +10,19 @@ tedopa.tedopa module
     :show-inheritance:
     :private-members:
 
-tedopa.tmps module
--------------------
+tedopa._recurrence_coefficients module
+--------------------------------------
 
-.. automodule:: tedopa.tmps
+.. automodule:: tedopa._recurrence_coefficients
     :members:
     :undoc-members:
     :show-inheritance:
     :private-members:
 
+tedopa.tmps module
+-------------------
 
-tedopa._recurrence_coefficients module
---------------------------------------
-
-.. automodule:: tedopa._recurrence_coefficients
+.. automodule:: tedopa.tmps
     :members:
     :undoc-members:
     :show-inheritance:

@@ -30,7 +30,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
         state (mpnum.MPArray): The state of the system which is to be
             evolved.
         method (str): The form of the state, determining the method used
-            in the calculations. Either 'mpo' or 'pmps'.
+            in the calculations. Either 'mps', 'mpo' or 'pmps'.
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
             form used by mpnum.compress())
@@ -52,15 +52,15 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
             Order of trotter to be used. Currently only 2 and 4
             are implemented
         num_trotter_slices (int): Number of Trotter slices to be used for the
-            largest t in ts.
-            If ts=[10, 25, 30] and num_trotter_slices=100,
+            largest t in ts_full or ts_system.
+            If ts_system=[10, 25, 30] and num_trotter_slices=100,
             then the program would use 100/30*10=33, 100/30*25=83 and
             100/30*30=100 Trotter slices to calculate the time evolution for the
             three times.
         ncap (int):
             Number internally used by py-orthpol. Must be <= 60000,
-            the higher the longer the calculation of the coefficients takes
-            and the more accurate it becomes.
+            the higher the longer the calculation of the recurrence
+            coefficients takes and the more accurate it becomes.
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
 
@@ -116,9 +116,9 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
         state (mpnum.MPArray): The state of the system which is to be
             evolved.
         method (str): The form of the state, determining the method used
-            in the calculations. Either 'mpo' or 'pmps'.
+            in the calculations. Either 'mps', 'mpo' or 'pmps'.
         sys_position (int): Which index, in the chain representing the state, is
-            the position of the first site of the system (first would be 0).
+            the position of the first site of the system (starting at 0).
             E.g. 2 if the chain sites are
             environment-environment-system-system-environment-environment
         trotter_compr (dict):
@@ -144,15 +144,15 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
             Order of trotter to be used. Currently only 2 and 4
             are implemented
         num_trotter_slices (int): Number of Trotter slices to be used for the
-            largest t in ts.
-            If ts=[10, 25, 30] and num_trotter_slices=100,
+            largest t in ts_full or ts_system.
+            If ts_system=[10, 25, 30] and num_trotter_slices=100,
             then the program would use 100/30*10=33, 100/30*25=83 and
             100/30*30=100 Trotter slices to calculate the time evolution for the
             three times.
         ncap (int):
             Number internally used by py-orthpol. Must be <= 60000,
-            the higher the longer the calculation of the coefficients takes
-            and the more accurate it becomes.
+            the higher the longer the calculation of the recurrence
+            coefficients takes and the more accurate it becomes.
         v (bool): Verbose or not verbose (will print what is going on vs.
             won't print anything)
 
