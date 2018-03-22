@@ -1,1 +1,1 @@
-FUTURE README FILE
+This is a TEDOPA implementation.
