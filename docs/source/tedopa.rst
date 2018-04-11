@@ -1,5 +1,5 @@
 py-tedopa Documentation
-=====================
+=======================
 
 tedopa.tedopa module
 ---------------------

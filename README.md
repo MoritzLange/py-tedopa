@@ -1,7 +1,7 @@
 # py-tedopa
 ## TEDOPA: Time Evolving Density matrices using Orthogonal Polynomials
 This is a Python 3 package for time evolving the states of certain open quantum systems using orthogonal polynomials. It provides:
-* Mapping of the Hamiltonian of a system, linearly coupled to a continuous bosonic environment, to a one dimensional chain
+* Exact mapping of the Hamiltonian of a system, linearly coupled to a continuous bosonic environment, to a one dimensional chain
 * Time evolution for matrix product states or operators based on Trotter decomposition
 * Functions combining mapping and time evolution, i.e. providing the full TEDOPA
 
