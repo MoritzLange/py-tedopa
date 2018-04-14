@@ -1,5 +1,5 @@
 """
-Functions to calculate recursion coefficients, based on the package py-orthpol.
+Functions to calculate recurrence coefficients, based on the package py-orthpol.
 """
 import math
 
@@ -8,12 +8,12 @@ import orthpol as orth
 
 def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
     """
-    Calculate recursion coefficients for given spectral density
+    Calculate recurrence coefficients for given spectral density
 
-    Recursion coeffcients for an arbitrary measure are defined as follows.
+    Recurrence coeffcients for an arbitrary measure are defined as follows.
     Given some measure :math:`d\mu(x)`, which defines the set
     :math:`\\{\\pi_n(x)\\in \\mathbb{P}_n,n=0,1,2,\\ldots\\}` of monic
-    orthogonal polynomials with respect to the measure, the following recursion
+    orthogonal polynomials with respect to the measure, the following recurrence
     relation holds.
 
     .. math::
@@ -27,11 +27,11 @@ def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
        \\alpha_k=\\frac{\\langle x \\pi_k,\pi_k\\rangle}{\\langle \\pi_k,\\pi_k\\rangle}, \\quad \\beta_k=\\frac{\\langle \\pi_k,\\pi_k\\rangle}{\\langle \\pi_{k-1},\\pi_{k-1}\\rangle}.
 
     The TEDOPA mapping for a given spectral density relies on calculating the
-    recursion coefficients with respect to the measure :math:`d\mu(x)=h^2(x)dx`,
+    recurrence coefficients with respect to the measure :math:`d\mu(x)=h^2(x)dx`,
     where :math:`J(\\omega)=\\pi h^2[g^{-1}(\\omega)]
     \\frac{dg^{-1}(\\omega)}{d\\omega}` and :math:`g(x) = gx`. Thus, this function
     first calculates the function :math:`h^2(x)` from :math:`J(\\omega)` and then
-    calls py-orthpol package to find the recursion coefficients.
+    calls py-orthpol package to find the recurrence coefficients.
 
     For more details, see Journal of Mathematical Physics 51, 092109 (2010);
     doi: 10.1063/1.3490188.
@@ -41,7 +41,7 @@ def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
 
     Args:
       n (int):
-        Number of recursion coefficients required.
+        Number of recurrence coefficients required.
       g (float):
         Constant g, assuming that for J(omega) it is g(omega)=g*omega.
       lb (float):
@@ -52,13 +52,13 @@ def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
         :math:`J(\omega)` defined on the interval (lb, rb)
       ncap (int):
         Number internally used by py-orthpol to determine the accuracy with
-        which the recursion coefficients are calculated. Must be >n and <=60000.
+        which the recurrence coefficients are calculated. Must be >n and <=60000.
         Between 10000 and 60000 recommended, the higher the number the higher
         the accuracy and the longer the execution time. (Default value = 60000)
 
     Returns:
         list[list[float], list[float]]:
-            A list of two lists, each with the respective recursion coefficients
+            A list of two lists, each with the respective recurrence coefficients
             :math:`\{\\alpha_i: i = 1,2,\\dots,n\}` and
             :math:`\{\\beta_i: i = 1,2,\\dots,n\}` defined above.
 

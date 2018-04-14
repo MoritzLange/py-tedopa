@@ -8,7 +8,6 @@ tedopa1 and tedopa2 do the mapping and perform time evolution with it.
 
 import numpy as np
 
-import mpnum as mp
 from tedopa import _recurrence_coefficients as rc
 from tedopa import tmps
 
@@ -97,7 +96,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
     return times, states
 
 
-def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
+def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr, js,
             domains, ts_full, ts_system, gs=(1, 1), trotter_order=2,
             num_trotter_slices=100,
             ncap=20000, v=False):
@@ -111,7 +110,7 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
 
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian of the two site system
-        a (list[numpy.ndarray]): The two interaction operators defined as
+        a_twosite (list[numpy.ndarray]): The two interaction operators defined as
             A_hat in the paper
         state (mpnum.MPArray): The state of the system which is to be
             evolved.
@@ -165,12 +164,12 @@ def tedopa2(h_loc, a, state, method, sys_position, trotter_compr, compr, js,
     if v:
         print("Calculating the TEDOPA mapping...")
     left_ops = map(np.zeros([state_shape[sys_position][0]] * 2),
-                   a[0], list(reversed(state_shape[:sys_position + 1:])),
+                   a_twosite[0], list(reversed(state_shape[:sys_position + 1:])),
                    js[0], domains[0], gs[0], ncap)
     singlesite_ops_left, twosite_ops_left = [list(reversed(i)) for i in
                                              left_ops]
     singlesite_ops_right, twosite_ops_right = \
-        map(np.zeros([state_shape[sys_position + 1][0]] * 2), a[1],
+        map(np.zeros([state_shape[sys_position + 1][0]] * 2), a_twosite[1],
             list(state_shape[sys_position + 1::]), js[1], domains[1],
             gs[1], ncap)
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
