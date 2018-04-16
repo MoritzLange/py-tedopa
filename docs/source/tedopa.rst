@@ -1,6 +1,14 @@
 py-tedopa Documentation
 =======================
 
+Module contents
+---------------
+
+.. automodule:: tedopa
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 tedopa.tedopa module
 ---------------------
 
@@ -27,12 +35,3 @@ tedopa.tmps module
     :undoc-members:
     :show-inheritance:
     :private-members:
-
-
-Module contents
----------------
-
-.. automodule:: tedopa
-    :members:
-    :undoc-members:
-    :show-inheritance:

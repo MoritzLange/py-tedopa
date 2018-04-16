@@ -104,9 +104,10 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
     Mapping the Hamiltonian of a system composed of two sites, each linearly
     coupled to a reservoir of bosonic modes, to a 1D chain and performing
     time evolution.
-        The first elements in the lists js, domains, etc. always refer to the
-        first (left) site and the second elements in the lists refer to the
-        second (right) site of the system
+
+    The first elements in the lists js, domains, etc. always refer to the
+    first(left) site and the second elements in the lists refer to the
+    second (right) site of the system
 
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian of the two site system

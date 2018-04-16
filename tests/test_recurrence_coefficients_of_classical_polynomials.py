@@ -10,10 +10,12 @@ import numpy as np
 
 from tedopa import _recurrence_coefficients as rc
 
-precision = 1e-5
-ncap = 30000
+precision = 1e-4
+ncap = 10000
 # One could demand higher precision but then ncap might
-# need to be higher which leads to longer computation times
+# need to be higher which leads to longer computation times. For example
+# precision = 1e-5
+# ncap = 30000
 
 
 def test_chebyshev():
