@@ -2,6 +2,8 @@
 
 ## TEDOPA: Time Evolving Density matrices using Orthogonal Polynomials
 
+[![Documentation Status](https://readthedocs.org/projects/py-tedopa/badge/?version=latest)](http://py-tedopa.readthedocs.org/en/latest/?badge=latest)
+
 This is a Python 3 package for simulating the time-evolution of quantum systems via matrix product states and operators.
 
 Time evolution of one-dimensional quantum systems under local Hamiltonians is provided via the tMPS algorithm using second- and fourth-order Trotter Suzuki decomposition. Hamiltonian evolution of matrix product state, matrix product operators and purified matrix product states is supported.
