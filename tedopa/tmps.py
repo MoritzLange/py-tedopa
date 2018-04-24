@@ -4,13 +4,6 @@ Time evolution of state given as MPS, MPO or PMPS via tMPS algorithm.
 Functions to calculate the time evolution of an operator in MPS, MPO or PMPS form
 from Hamiltonians acting on every single and every two adjacent sites.
 
-.. todo::
-   Some varaible names are currently ambiguous. For instance ``ts`` currently
-   refers to two different objects, the slice indices and the actual times.
-   Likewise for ``subsystems`` and ``hamiltonians``, which are first processed by other
-   functions to bring into a useable form. The usable form should have a
-   different name from the input variable.
-
 """
 from collections import Counter
 from itertools import repeat
@@ -21,48 +14,47 @@ from scipy.linalg import expm
 import mpnum as mp
 
 
-def _subsystem_time_list(subsystems, num_trotter_slices, ts):
+def _sort_subsystems(subsystems, step_numbers):
     """
-    List of subsystems for which the state should be returned at each time
+    List of subsystems for which the state should be returned at each time.
+    This function just brings subsystems in the right form and sorts it.
 
     .. todo::
        Add doctest with example of the two types of allowed inputs.
 
     .. todo::
        Raise exception if length of the subsystem list (of first type) differs
-       from the lenght of [ts]
+       from the length of [step_numbers]
 
     Args:
         subsystems (list):
             Same as that described in :func:`evolve`
-        num_trotter_slices (int):
-            Number of Trotter slices to be used for the largest t in ts.
-        times (list):
+        step_numbers (list):
             The Trotter slices at which the subsystem is saved. Same as the
             first element from the output of _times_to_steps
     Returns:
-        tuple[list[int]:
-            sites for which the subsystem should be returned at the
+        list[list[int]]:
+            Sites for which the subsystem should be returned at the
             respective time,
     """
     if type(subsystems[0]) != list:
-        subsystems = [subsystems] * len(ts)
-    subsystems = [x for _, x in sorted(zip(ts, subsystems))]
+        subsystems = [subsystems] * len(step_numbers)
+    subsystems = [x for _, x in sorted(zip(step_numbers, subsystems))]
     return subsystems
 
 
-def _times_to_steps(times, num_trotter_slices):
+def _times_to_steps(ts, num_trotter_slices):
     """
     Calculate Trotter step numbers at which subsystem states should be saved
 
-    If times=[10, 25, 30] and num_trotter_slices was 100, then the result
-    would be times=[33, 83, 100]
+    If ts=[10, 25, 30] and num_trotter_slices was 100, then the result
+    would be step_numbers=[33, 83, 100]
 
     .. todo::
        Convert this example into a doctest.
 
     Args:
-        times (list[float]):
+        ts (list[float]):
             The times for which the evolution should be computed and the
             state of the full system or a subsystem returned (i.e. it's reduced
             density matrix (for now only works with method='mpo'. If the
@@ -76,12 +68,13 @@ def _times_to_steps(times, num_trotter_slices):
             largest t in ts.
 
     Returns:
-        tuple[list[int], float]: times, tau = maximal t / num_trotter_slices
+        tuple[list[int], float]: step numbers, tau = maximal t /
+        num_trotter_slices
     """
-    times.sort()
-    tau = times[-1] / num_trotter_slices
-    ts = [int(round(t / tau)) for t in times]
-    return ts, tau
+    ts.sort()
+    tau = ts[-1] / num_trotter_slices
+    step_numbers = [int(round(t / tau)) for t in ts]
+    return step_numbers, tau
 
 
 def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
@@ -163,7 +156,8 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
             The time evolution operator parts, which, applied one after
             another, give one Trotter slice
     """
-    h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
+    h_single, h_adjacent = _get_h_list(hamiltonians=hamiltonians,
+                                       num_sites=num_sites)
     dims = [len(h_single[i]) for i in range(len(h_single))]
     u_odd_list = _get_u_list_odd(dims, h_single, h_adjacent, tau=tau / 2)
     u_even_list = _get_u_list_even(dims, h_single, h_adjacent, tau=tau)
@@ -202,7 +196,8 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
                     tau * .5 * (1 - 3 / (4 - 4 ** (1 / 3)))]
     taus_for_even = [tau / (4 - 4 ** (1 / 3)),
                      tau * (1 - 4 / (4 - 4 ** (1 / 3)))]
-    h_single, h_adjacent = _get_h_list(hs=hamiltonians, num_sites=num_sites)
+    h_single, h_adjacent = _get_h_list(hamiltonians=hamiltonians,
+                                       num_sites=num_sites)
     dims = [len(h_single[i]) for i in range(len(h_single))]
     u_odd_lists = [_get_u_list_odd(dims, h_single, h_adjacent, t) for t in
                    taus_for_odd]
@@ -222,7 +217,7 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     return us
 
 
-def _get_h_list(hs, num_sites):
+def _get_h_list(hamiltonians, num_sites):
     """
     Convert given list of Hamiltonians into form suitable for exponentiation
 
@@ -231,7 +226,7 @@ def _get_h_list(hs, num_sites):
     check whether the lengths of the lists match the number of sites.
 
     Args:
-        hs (list):
+        hamiltonians (list):
             Hamiltonians as in evolve()
         num_sites (int):
             Number of sites of the state to be evolved
@@ -243,13 +238,14 @@ def _get_h_list(hs, num_sites):
             of Hamiltonians acting on each two adjacent sites, like [h12, h23,
             h34, ...]
     """
-    if type(hs[0]) is not list:
-        hs = [list(repeat(hs[0], num_sites)),
-              list(repeat(hs[1], num_sites - 1))]
-    elif (len(hs[0]) != num_sites) or (len(hs[1]) != num_sites - 1):
+    if type(hamiltonians[0]) is not list:
+        hamiltonians = [list(repeat(hamiltonians[0], num_sites)),
+                        list(repeat(hamiltonians[1], num_sites - 1))]
+    elif (len(hamiltonians[0]) != num_sites) or (
+                len(hamiltonians[1]) != num_sites - 1):
         raise ValueError(
             "Number of given Hamiltonians does not match number of sites")
-    return hs[0], hs[1]
+    return hamiltonians[0], hamiltonians[1]
 
 
 def _get_u_list_odd(dims, h_single, h_adjacent, tau):
@@ -353,7 +349,7 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
-        for i, u in enumerate(u_odd))
+                   for i, u in enumerate(u_odd))
     if len(dims) % 2 == 1:
         odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
     return odd
@@ -385,7 +381,7 @@ def _u_list_to_mpo_even(dims, u_even, compr):
         u_even = u_even[:-1]
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
-        for i, u in enumerate(u_even[1::]))
+                    for i, u in enumerate(u_even[1::]))
     even = mp.chain([matrix_to_mpo(u_even[0], [[dims[0]] * 2], compr), even])
     if len(dims) % 2 == 0:
         even = mp.chain([even, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
@@ -502,8 +498,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
         ts (list[float]):
             The times for which the evolution should be computed and the state
             of the full system or a subsystem returned (i.e. it's reduced
-            density matrix (for now only works with method='mpo'. If the method
-            is not mpo, omit subsystems)). The algorithm will calculate the
+            density matrix). The algorithm will calculate the
             evolution using the given number of Trotter steps for the largest
             number in ts. On the way there it will store the evolved states for
             smaller times. NB: Beware of memory overload since len(t) number of
@@ -547,10 +542,8 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             "No time evolution requested by the user. Check your input 't'")
     if subsystems == None:
         subsystems = [0, len(state)]
-    ts, tau = _times_to_steps(ts, num_trotter_slices)
-    print(subsystems, num_trotter_slices, ts)
-    subsystems = _subsystem_time_list(subsystems, num_trotter_slices, ts)
-    print(subsystems)
+    step_numbers, tau = _times_to_steps(ts, num_trotter_slices)
+    subsystems = _sort_subsystems(subsystems, step_numbers)
 
     us = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                         num_sites=len(state), trotter_order=trotter_order,
@@ -559,11 +552,12 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
         print("Time evolution operator for Trotter slice calculated, "
               "starting "
               "Trotter iterations...")
-    return _time_evolution(state, us, ts, subsystems, tau, method,
+    return _time_evolution(state, us, step_numbers, subsystems, tau, method,
                            trotter_compr, v)
 
 
-def _time_evolution(state, us, ts, subsystems, tau, method, trotter_compr, v):
+def _time_evolution(state, us, step_numbers, subsystems, tau, method,
+                    trotter_compr, v):
     """
     Implements time-evolution via Trotter-Suzuki decomposition
 
@@ -572,7 +566,7 @@ def _time_evolution(state, us, ts, subsystems, tau, method, trotter_compr, v):
             The state to be evolved in time
         us (list[mpnum.MPArray]):
             List of ordered operator exponentials for a single Trotter slice
-        ts (list[int]):
+        step_numbers (list[int]):
             List of time steps as generated by _times_to_steps()
         subsystems (list[list[int]]):
             Sites for which the subsystem states should be returned at the
@@ -600,7 +594,7 @@ def _time_evolution(state, us, ts, subsystems, tau, method, trotter_compr, v):
             procedure (v) The order of errors due to application of Trotter
             during the procedure
     """
-    c = Counter(ts)
+    c = Counter(step_numbers)
 
     times = []
     states = []
@@ -613,10 +607,10 @@ def _time_evolution(state, us, ts, subsystems, tau, method, trotter_compr, v):
     accumulated_overlap = 1
     accumulated_trotter_error = 0
 
-    for i in range(ts[-1] + 1):
+    for i in range(step_numbers[-1] + 1):
         for j in range(c[i]):
-            _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
-                    subsystems, state, accumulated_overlap,
+            _append(times, states, compr_errors, trot_errors, tau, i, j,
+                    step_numbers, subsystems, state, accumulated_overlap,
                     accumulated_trotter_error, method)
         for u in us:
             if var_compression:
@@ -638,7 +632,7 @@ def _time_evolution(state, us, ts, subsystems, tau, method, trotter_compr, v):
     return times, subsystems, states, compr_errors, trot_errors
 
 
-def _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
+def _append(times, states, compr_errors, trot_errors, tau, i, j, step_numbers,
             subsystems, state, accumulated_overlap,
             accumulated_trotter_error, method):
     """
@@ -655,7 +649,7 @@ def _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
         i (int): Number indicating which is the current Trotter slice
         j (int): Number indicating how many times a state related to the
             current i has been appended already
-        ts (list[int]): List containing the time steps
+        step_numbers (list[int]): List containing the time steps
         subsystems (list[list[int]]): List of sites for which the subsystem
             should be returned at the respective time
         state (mpnum.MPArray): The current state
@@ -668,7 +662,7 @@ def _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
 
     """
     times.append(tau * i)
-    sites = [x for t, x in zip(ts, subsystems) if t == i][j]
+    sites = [x for t, x in zip(step_numbers, subsystems) if t == i][j]
     if sites == [0, len(state)]:
         states.append(state.copy())
     elif method == 'mpo':
@@ -686,4 +680,5 @@ def _append(times, states, compr_errors, trot_errors, tau, i, j, ts,
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

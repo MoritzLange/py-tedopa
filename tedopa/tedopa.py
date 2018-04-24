@@ -276,8 +276,8 @@ def _get_parameters(n, j, domain, g, ncap):
     Calculate the parameters needed for mapping the Hamiltonian to a 1D chain
 
     Args:
-        n (int): Number of recursion coefficients required
-            (rc.recursionCoefficients() actually returns one more and the
+        n (int): Number of recurrence coefficients required
+            (rc.recurrenceCoefficients() actually returns one more and the
             system site does not need one, so the argument n-2 is passed)
         j (types.LambdaType): spectral function J(omega) as defined in the paper
         domain (list[float]): Domain on which j is defined,
