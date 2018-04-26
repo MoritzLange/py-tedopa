@@ -180,16 +180,19 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
             List of two lists of Hamiltonians, the Hamiltonians in the first
             acting on every single site, the Hamiltonians in the second acting
             on every pair of two adjacent sites
-        tau (float): As defined in _times_to_steps()
-        num_sites (int): Number of sites of the state to be evolved
-        compr (dict): Parameters for the compression which is executed on every
-            MPA during the calculations, except for the Trotter calculation
-            where trotter_compr is used
+        tau (float):
+            As defined in _times_to_steps()
+        num_sites (int):
+            Number of sites of the state to be evolved
+        compr (dict):
+            Parameters for the compression which is executed on every MPA during
+            the calculations, except for the Trotter calculation where
+            trotter_compr is used
 
     Returns:
         list[mpnum.MPArray]:
-            The time evolution operator parts, which, applied one after
-            another, give one Trotter slice
+            The time evolution operator parts, which, applied one after another,
+            give one Trotter slice
     """
     taus_for_odd = [tau * .5 / (4 - 4 ** (1 / 3)),
                     tau / (4 - 4 ** (1 / 3)),
@@ -242,7 +245,7 @@ def _get_h_list(hamiltonians, num_sites):
         hamiltonians = [list(repeat(hamiltonians[0], num_sites)),
                         list(repeat(hamiltonians[1], num_sites - 1))]
     elif (len(hamiltonians[0]) != num_sites) or (
-                len(hamiltonians[1]) != num_sites - 1):
+            len(hamiltonians[1]) != num_sites - 1):
         raise ValueError(
             "Number of given Hamiltonians does not match number of sites")
     return hamiltonians[0], hamiltonians[1]
@@ -336,9 +339,10 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
             List of dimensions of each site
         u_odd (list):
             List of time evolution operators acting on odd adjacent sites
-        compr (dict): Parameters for the compression which is executed on every
-            MPA during the calculations, except for the Trotter calculation
-            where trotter_compr is used
+        compr (dict): 
+            Parameters for the compression which is executed on every MPA during
+            the calculations, except for the Trotter calculation where
+            trotter_compr is used
 
     Returns:
         mpnum.MPArray:
@@ -349,7 +353,7 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
-                   for i, u in enumerate(u_odd))
+        for i, u in enumerate(u_odd))
     if len(dims) % 2 == 1:
         odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
     return odd
@@ -381,7 +385,7 @@ def _u_list_to_mpo_even(dims, u_even, compr):
         u_even = u_even[:-1]
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
-                    for i, u in enumerate(u_even[1::]))
+        for i, u in enumerate(u_even[1::]))
     even = mp.chain([matrix_to_mpo(u_even[0], [[dims[0]] * 2], compr), even])
     if len(dims) % 2 == 0:
         even = mp.chain([even, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
@@ -409,9 +413,10 @@ def matrix_to_mpo(matrix, shape, compr=None):
             The shape the single sites of the resulting MPO should have, as used
             in mpnum. For example three sites with two legs each might look like
             ``[[3, 3], [2, 2], [2, 2]]``. Format same as ``numpy.ndarray.shape``
-        compr (dict): Parameters for the compression which is executed on every
-            MPA during the calculations, except for the Trotter calculation
-            where trotter_compr is used
+        compr (dict):
+            Parameters for the compression which is executed on every MPA during
+            the calculations, except for the Trotter calculation where
+            trotter_compr is used
 
     Returns:
         mpnum.MPArray:
@@ -433,7 +438,6 @@ def matrix_to_mpo(matrix, shape, compr=None):
     return mpo
 
 
-# Does this work, is state mutable and this operation in place?
 def normalize(state, method):
     """
     Normalize a state (hopefully in place)
@@ -517,8 +521,9 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             can occur twice in ``ts`` and then different subsystems to be returned
             can be defined for that same time. If this parameter is omitted, the
             full system will be returned for every time in ``ts``.
-        v (bool): Verbose or not verbose (will print what is going on vs.
-            won't print anything)
+        v (bool):
+            Verbose or not verbose (will print what is going on vs. won't print
+            anything)
 
     Returns:
         list[list[float], list[list[int]], list[mpnum.MPArray], list[float], list[float]]:
@@ -639,23 +644,34 @@ def _append(times, states, compr_errors, trot_errors, tau, i, j, step_numbers,
     Function to append time evolved state etc to output of _time_evolution()
 
     Args:
-        times (list[float]): List containing the times to which the states are
-            evolved
-        states (list[mpnum.MPArray]): List containing the evolved states
-        compr_errors (list[float]): List containing the respective compression
-            errors
-        trot_errors (list[float]): List containing the respective Trotter errors
-        tau (float): The time of one Trotter slice
-        i (int): Number indicating which is the current Trotter slice
-        j (int): Number indicating how many times a state related to the
+        times (list[float]):
+            List containing the times to which the states are evolved
+        states (list[mpnum.MPArray]):
+            List containing the evolved states
+        compr_errors (list[float]):
+            List containing the respective compression errors
+        trot_errors (list[float]):
+            List containing the respective Trotter errors
+        tau (float):
+            The time of one Trotter slice
+        i (int):
+            Number indicating which is the current Trotter slice
+        j (int):
+            Number indicating how many times a state related to the
             current i has been appended already
-        step_numbers (list[int]): List containing the time steps
-        subsystems (list[list[int]]): List of sites for which the subsystem
-            should be returned at the respective time
-        state (mpnum.MPArray): The current state
-        accumulated_overlap (float): The accumulated overlap error
-        accumulated_trotter_error (float): The accumulated Trotter error
-        method (str): Method to use as defined in evolve()
+        step_numbers (list[int]):
+            List containing the time steps
+        subsystems (list[list[int]]):
+            List of sites for which the subsystem should be returned at the
+            respective time
+        state (mpnum.MPArray):
+            The current state
+        accumulated_overlap (float):
+            The accumulated overlap error
+        accumulated_trotter_error (float):
+            The accumulated Trotter error
+        method (str):
+            Method to use as defined in evolve()
 
     Returns:
         None: Nothing, changes happen in place
