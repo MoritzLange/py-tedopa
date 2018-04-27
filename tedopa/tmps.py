@@ -396,12 +396,8 @@ def matrix_to_mpo(matrix, shape, compr=None):
     """
     Convert matrix to MPO
 
-    Converts given NxN matrix in global form (probably also works for MxN) into
-    an MPO with the given shape. The number of legs per site must be the same
-    for all sites.
-
-    .. todo::
-       Check if it works for MxN and clarify the docstring above.
+    Converts given MxN matrix in global form into an MPO with the given
+    shape. The number of legs per site must be the same for all sites.
 
     .. todo::
        Add doctest. Can use to_array on the output MPO to display results.
@@ -440,10 +436,7 @@ def matrix_to_mpo(matrix, shape, compr=None):
 
 def normalize(state, method):
     """
-    Normalize a state (hopefully in place)
-
-    .. todo::
-       Check if state is mutable and this operation in place. Then clear docstring
+    Normalize a state.
 
     Args:
         state (mpnum.MPArray): The state to be normalized
@@ -472,6 +465,12 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
 
     .. todo::
        Implement tracking of compression errors.
+
+    .. todo::
+        Implement different stages of verbose, so that the user can see
+        either nothing, or what's verbose right now (output after every n^2
+        Trotter step), or bond dimensions after every n^2 Trotter step,
+        or bond dimensions after every Trotter step.
 
     Args:
         state (mpnum.MPArray):
@@ -533,9 +532,10 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             first list (iii) The list of density matrices as MPO or PMPS as
             mpnum.MPArray, depending on the input "method". If that was MPS, the
             full states will still be MPSs, the reduced ones will be MPOs. (iv)
-            The errors due to compression during the procedure (v) The order of
-            errors due to application of Trotter-Suzuki decomposition during the
-            evolution.
+            The errors due to compression during the procedure (not correctly
+            calculated yet) (v) The order of errors due to application of
+            Trotter-Suzuki decomposition during the evolution (also not yet
+            correct).
 
     """
     state.compress(**compr)
@@ -589,15 +589,17 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
 
     Returns:
         list[list[float], list[list[int]], list[mpnum.MPArray], list[float], list[float]]:
-            A list with five items: (i)The list of times for which the density
+            A list with five items: (i) The list of times for which the density
             matrices have been computed (ii) The list indicating which
-            subsystems of the system are returned at the respective
-            time of the first list (iii) The list of density matrices as MPO
-            or PMPS as mpnum.MPArray, depending on the input "method". If
-            that was MPS, the full states will still be MPSs, the reduced
-            ones will be MPOs. (iv) The errors due to compression during the
-            procedure (v) The order of errors due to application of Trotter
-            during the procedure
+            subsystems of the system are returned at the respective time of the
+            first list (iii) The list of density matrices as MPO or PMPS as
+            mpnum.MPArray, depending on the input "method". If that was MPS, the
+            full states will still be MPSs, the reduced ones will be MPOs. (iv)
+            The errors due to compression during the procedure (not correctly
+            calculated yet) (v) The order of errors due to application of
+            Trotter-Suzuki decomposition during the evolution (also not yet
+            correct).
+
     """
     c = Counter(step_numbers)
 

@@ -5,9 +5,6 @@ This module comprises functions for simulating the time-evolution of one- and
 two-site open quantum systems via `tedopa1` and `tedopa2` and helper functions.
 
 .. todo::
-   Check the effect of changing the g values.
-
-.. todo::
    Decide if better to convert the arguments of tedopa1 and tedopa2 to kwargs.
 
 .. todo::tedopa2
@@ -98,8 +95,11 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
 
     Returns:
         list[list[float], list[mpnum.MPArray]]:
-            A list of actual query times and a list of the corresponding evolved
-            states
+            The first list is an array of times for which the states are
+            actually computed (might differ slightly from the times in ts_full
+            and ts_system, since the ones in times have to be multiples of
+            tau). The second list is an array of the corresponding evolved
+            states.
 
     .. todo::
        Need to define the default trotter and other compression parameters for
@@ -107,17 +107,8 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
        paramters are none, then call a function that assigns reasonable
        parameters.
 
-    .. todo::    .. todo::
-        Would be nice to clarify the differences between the times, ts variables.
-        This is similar to the disambiguation in earlier commit
-        cff22094c363e977d09cad2d0fdcfd4a43cc90e7
-
-       Would be nice to clarify the differences between the times, ts variables.
-       This is similar to the disambiguation in earlier commit
-       cff22094c363e977d09cad2d0fdcfd4a43cc90e7
-
     .. todo::
-       Add link to mpnum.compress() or more comprete description of compression
+       Add link to mpnum.compress() or more complete description of compression
        parameters with examples.
 
     .. todo::
@@ -228,15 +219,14 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
 
     Returns:
         list[list[float], list[mpnum.MPArray]]:
-            An array of times and an array of the corresponding evolved states
+            The first list is an array of times for which the states are
+            actually computed (might differ slightly from the times in ts_full
+            and ts_system, since the ones in times have to be multiples of
+            tau). The second list is an array of the corresponding evolved
+            states.
 
     .. todo::
        Raise exceptions if the state shapes are not sensible
-
-    .. todo::
-       Would be nice to clarify the differences between the times, ts variables.
-       This is similar to the disambiguation in earlier commit
-       cff22094c363e977d09cad2d0fdcfd4a43cc90e7
 
     """
     state_shape = state.shape
@@ -287,6 +277,11 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
             in Chin et al.
         state_shape (list[list[int]]):
             The shape of the chain on which the hamiltonian is to be applied.
+            For example [[3, 3], [2, 2], [2, 2]] for a system comprised of 3
+            sites, where the first one has 2 physical legs each of dimension 3,
+            the second has 2 physical legs each of dimension 2 and so on.
+            This is the typical MPA shape used by mpnum
+            (state.shape if state is an mpnum.MPArray).
         j (types.LambdaType):
             Spectral function J(omega) as defined in Chin et al.
         domain (list[float]):
@@ -298,12 +293,12 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
 
     Returns:
         list[list[numpy.ndarray]]:
-            Terms with the effective Hamiltonian acting on the chain after the
+            Terms of the effective Hamiltonian acting on the chain after the
             chain mapping. Two lists, one with the single-site operators and the
             other with adjacent-site operators that act on two sites. See the
 
     .. todo::
-       Add better description of `state_shape`.
+        See the what?
 
     """
     params = _get_parameters(
@@ -422,6 +417,9 @@ def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
     the proper 'ts' and 'subsystems' input lists for tmps.evolve() from a
     list of times where the full state shall be returned and a list of times
     where only the reduced state of the system in question shall be returned.
+    ts then basically is a concatenation of ts_full and ts_system,
+    while subsystems will indicate that at the respective time in ts either
+    the full state or only a reduced density matrix should be returned.
 
     Args:
         ts_full (list[float]):
@@ -439,9 +437,6 @@ def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
         tuple(list[float], list[list[int]]):
             Times and subsystems in the form that has to be provided to
             tmps.evolve()
-
-    .. todo::
-       Descroption should be updated after the disambiguation.
 
     """
     ts = list(ts_full) + list(ts_system)
