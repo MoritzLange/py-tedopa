@@ -245,7 +245,7 @@ def _get_h_list(hamiltonians, num_sites):
         hamiltonians = [list(repeat(hamiltonians[0], num_sites)),
                         list(repeat(hamiltonians[1], num_sites - 1))]
     elif (len(hamiltonians[0]) != num_sites) or (
-            len(hamiltonians[1]) != num_sites - 1):
+                len(hamiltonians[1]) != num_sites - 1):
         raise ValueError(
             "Number of given Hamiltonians does not match number of sites")
     return hamiltonians[0], hamiltonians[1]
@@ -353,7 +353,7 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
         u_odd = u_odd[:-1]
     odd = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i]] * 2, [dims[2 * i + 1]] * 2], compr)
-        for i, u in enumerate(u_odd))
+                   for i, u in enumerate(u_odd))
     if len(dims) % 2 == 1:
         odd = mp.chain([odd, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
     return odd
@@ -385,7 +385,7 @@ def _u_list_to_mpo_even(dims, u_even, compr):
         u_even = u_even[:-1]
     even = mp.chain(matrix_to_mpo(
         u, [[dims[2 * i + 1]] * 2, [dims[2 * i + 2]] * 2], compr)
-        for i, u in enumerate(u_even[1::]))
+                    for i, u in enumerate(u_even[1::]))
     even = mp.chain([matrix_to_mpo(u_even[0], [[dims[0]] * 2], compr), even])
     if len(dims) % 2 == 0:
         even = mp.chain([even, matrix_to_mpo(last_h, [[dims[-1]] * 2], compr)])
@@ -453,7 +453,7 @@ def normalize(state, method):
 
 
 def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
-           trotter_order, compr, ts, subsystems=None, v=False):
+           trotter_order, compr, ts, subsystems=None, v=0):
     """
     Evolve a state using tMPS under given Hamiltonians with given parameters
 
@@ -471,6 +471,9 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
         either nothing, or what's verbose right now (output after every n^2
         Trotter step), or bond dimensions after every n^2 Trotter step,
         or bond dimensions after every Trotter step.
+
+    .. todo::
+        Get variable compression to work (might involve changing mpnum).
 
     Args:
         state (mpnum.MPArray):
@@ -490,7 +493,8 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter. If using
             variational compression, then ``Startmpa`` will be set by the
-            algorithm, does not need to be specified.
+            algorithm, does not need to be specified. !!Variable compression
+            does not work at the moment!!
         trotter_order (int):
             Order of Trotter-Suzuki decomposition to be used. Currently only 2
             and 4 are implemented
@@ -520,9 +524,12 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             can occur twice in ``ts`` and then different subsystems to be returned
             can be defined for that same time. If this parameter is omitted, the
             full system will be returned for every time in ``ts``.
-        v (bool):
-            Verbose or not verbose (will print what is going on vs. won't print
-            anything)
+        v (int):
+            Level of verbose output. 0 means no output, 1 means that some
+            basic output showing the progress of calculations is produced. 2
+            will in addition show the bond dimensions of the state after every
+            couple of iterations, 3 will show bond dimensions after every
+            Trotter iteration.
 
     Returns:
         list[list[float], list[list[int]], list[mpnum.MPArray], list[float], list[float]]:
@@ -553,7 +560,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
     us = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                         num_sites=len(state), trotter_order=trotter_order,
                         compr=compr)
-    if v:
+    if v != 0:
         print("Time evolution operator for Trotter slice calculated, "
               "starting "
               "Trotter iterations...")
@@ -583,9 +590,12 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter-Suzuki
             decomposition.
-        v (bool):
-            Verbose (Yes) or not verbose (No). Will print what is going on vs.
-            will not print anything.
+        v (int):
+            Level of verbose output. 0 means no output, 1 means that some
+            basic output showing the progress of calculations is produced. 2
+            will in addition show the bond dimensions of the state after every
+            couple of iterations, 3 will show bond dimensions after every
+            Trotter iteration.
 
     Returns:
         list[list[float], list[list[int]], list[mpnum.MPArray], list[float], list[float]]:
@@ -614,7 +624,7 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
     accumulated_overlap = 1
     accumulated_trotter_error = 0
 
-    for i in range(step_numbers[-1] + 1):
+    for i in range(step_numbers[-1]):
         for j in range(c[i]):
             _append(times, states, compr_errors, trot_errors, tau, i, j,
                     step_numbers, subsystems, state, accumulated_overlap,
@@ -632,9 +642,15 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
                 accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)
         accumulated_trotter_error += tau ** 3
-        if v and np.sqrt(i) % 1 == 0 and i != 0:
-            print(str(i) + " Trotter iterations finished...")
-    if v:
+        if (v == 1 or v == 2) and np.sqrt(i + 1) % 1 == 0:
+            print(str(i + 1) + " Trotter iterations finished...")
+            if v == 2:
+                print("Ranks: " + str(state.ranks))
+        if v == 3:
+            print(str(i + 1) + " Trotter iterations finished...")
+            print("Ranks: " + str(state.ranks))
+
+    if v != 0:
         print("Done with time evolution")
     return times, subsystems, states, compr_errors, trot_errors
 

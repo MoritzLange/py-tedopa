@@ -26,7 +26,7 @@ from tedopa import tmps
 
 def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
             ts_full, ts_system, g, trotter_order=2, num_trotter_slices=100,
-            ncap=20000, v=False):
+            ncap=20000, v=0):
     """
     Tedopa for a single site coupled to a bosonic bath.
 
@@ -89,9 +89,12 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
             returned recurrence coefficients. Must be <= 60000, the higher the
             longer the calculation of the recurrence coefficients takes and the
             more accurate it becomes.
-        v (bool):
-            Verbose or not verbose (will print what is going on vs. won't print
-            anything)
+        v (int):
+            Level of verbose output. 0 means no output, 1 means that some
+            basic output showing the progress of calculations is produced. 2
+            will in addition show the bond dimensions of the state after every
+            couple of iterations, 3 will show bond dimensions after every
+            Trotter iteration.
 
     Returns:
         list[list[float], list[mpnum.MPArray]]:
@@ -128,11 +131,11 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
         raise ValueError("The provided state has no chain representing the \
                          mapped environment. Check state.shape.")
 
-    if v:
+    if v!=0:
         print("Calculating the TEDOPA mapping...")
     singlesite_ops, twosite_ops = map(h_loc, a, state_shape,
                                       j, domain, g, ncap)
-    if v:
+    if v!=0:
         print("Proceeding to tmps...")
 
     ts, subsystems = get_times(ts_full, ts_system, len(state), 0, 1)
@@ -149,7 +152,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
 def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr, js,
             domains, ts_full, ts_system, gs=(1, 1), trotter_order=2,
             num_trotter_slices=100,
-            ncap=20000, v=False):
+            ncap=20000, v=0):
     """
     Mapping the Hamiltonian of a system composed of two sites, each linearly
     coupled to a reservoir of bosonic modes, to a 1D chain and performing
@@ -213,9 +216,12 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
             returned recurrence coefficients. Must be <= 60000, the higher the
             longer the calculation of the recurrence coefficients takes and the
             more accurate it becomes.
-        v (bool):
-            Verbose or not verbose (will print what is going on vs. won't print
-            anything)
+        v (int):
+            Level of verbose output. 0 means no output, 1 means that some
+            basic output showing the progress of calculations is produced. 2
+            will in addition show the bond dimensions of the state after every
+            couple of iterations, 3 will show bond dimensions after every
+            Trotter iteration.
 
     Returns:
         list[list[float], list[mpnum.MPArray]]:
@@ -231,7 +237,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
     """
     state_shape = state.shape
 
-    if v:
+    if v!=0:
         print("Calculating the TEDOPA mapping...")
     left_ops = map(np.zeros([state_shape[sys_position][0]] * 2),
                    a_twosite[0], list(
@@ -246,7 +252,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
     twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
 
-    if v:
+    if v!=0:
         print("Proceeding to tmps...")
 
     ts, subsystems = get_times(ts_full, ts_system, len(state), sys_position, 2)
@@ -425,13 +431,16 @@ def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
         ts_full (list[float]):
             List of times where the full state including environment chain
             should be returned
-        ts_part (list[float]):
+        ts_system (list[float]):
             List of times where only the reduced density matrix of the system
             should be returned
         len_state (int):
             The length of the state
         sys_position (int):
             The position of the system (first site would be 0)
+        sys_length (int):
+            Length of the system, i.e. number of sites the system is
+            comprised of
 
     Returns:
         tuple(list[float], list[list[int]]):
