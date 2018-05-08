@@ -140,7 +140,7 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
 
     ts, subsystems = get_times(ts_full, ts_system, len(state), 0, 1)
 
-    times, subsystems, states, compr_errors, trot_errors = tmps.evolve(
+    times, subsystems, states = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         subsystems=subsystems,
         num_trotter_slices=num_trotter_slices, method=method,
@@ -257,7 +257,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
 
     ts, subsystems = get_times(ts_full, ts_system, len(state), sys_position, 2)
 
-    times, subsystems, states, compr_errors, trot_errors = tmps.evolve(
+    times, subsystems, states = tmps.evolve(
         state=state, hamiltonians=[singlesite_ops, twosite_ops], ts=ts,
         subsystems=subsystems, num_trotter_slices=num_trotter_slices,
         method=method, trotter_compr=trotter_compr, trotter_order=trotter_order,

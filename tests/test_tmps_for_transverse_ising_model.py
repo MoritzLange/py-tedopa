@@ -26,7 +26,7 @@ class TestTMPS(object):
 
         num_trotter_slices = 101
 
-        times, sites, evolved_states, errors1, errors2 = \
+        times, sites, evolved_states = \
             tmps.evolve(state=mpo_state, hamiltonians=[B * self.sx(),
                                                        J * np.kron(self.sz(),
                                                                    self.sz())],
@@ -63,7 +63,7 @@ class TestTMPS(object):
 
         num_trotter_slices = 102
 
-        times, sites, evolved_states, errors1, errors2 = \
+        times, sites, evolved_states = \
             tmps.evolve(state=pmps_state, hamiltonians=[B * self.sx(),
                                                         J * np.kron(self.sz(),
                                                                     self.sz())],
@@ -100,7 +100,7 @@ class TestTMPS(object):
 
         num_trotter_slices = 110
 
-        times, sites, evolved_states, errors1, errors2 = \
+        times, sites, evolved_states = \
             tmps.evolve(state=pmps_state, hamiltonians=[B * self.sx(),
                                                         J * np.kron(self.sz(),
                                                                     self.sz())],

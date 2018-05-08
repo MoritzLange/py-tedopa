@@ -520,10 +520,10 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             returned for all entries in ``ts``. ``[a, b]`` will lead to a
             return of the reduced density matrix of the sites from ``a`` up to,
             but not including, ``b``. For example ``[0, 3]`` if the reduced
-            density matrix of the first three sites shall be returned. A time
-            can occur twice in ``ts`` and then different subsystems to be returned
-            can be defined for that same time. If this parameter is omitted, the
-            full system will be returned for every time in ``ts``.
+            density matrix of the first three sites should be returned. A time
+            can occur twice in ``ts`` and then different subsystems to be
+            returned can be defined for that same time. If this parameter is
+            omitted, the full system will be returned for every time in ``ts``.
         v (int):
             Level of verbose output. 0 means no output, 1 means that some
             basic output showing the progress of calculations is produced. 2
@@ -538,11 +538,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             subsystems of the system are returned at the respective time of the
             first list (iii) The list of density matrices as MPO or PMPS as
             mpnum.MPArray, depending on the input "method". If that was MPS, the
-            full states will still be MPSs, the reduced ones will be MPOs. (iv)
-            The errors due to compression during the procedure (not correctly
-            calculated yet) (v) The order of errors due to application of
-            Trotter-Suzuki decomposition during the evolution (also not yet
-            correct).
+            full states will still be MPSs, the reduced ones will be MPOs.
 
     """
     state.compress(**compr)
@@ -604,11 +600,7 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
             subsystems of the system are returned at the respective time of the
             first list (iii) The list of density matrices as MPO or PMPS as
             mpnum.MPArray, depending on the input "method". If that was MPS, the
-            full states will still be MPSs, the reduced ones will be MPOs. (iv)
-            The errors due to compression during the procedure (not correctly
-            calculated yet) (v) The order of errors due to application of
-            Trotter-Suzuki decomposition during the evolution (also not yet
-            correct).
+            full states will still be MPSs, the reduced ones will be MPOs.
 
     """
     c = Counter(step_numbers)
@@ -652,7 +644,7 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
 
     if v != 0:
         print("Done with time evolution")
-    return times, subsystems, states, compr_errors, trot_errors
+    return times, subsystems, states #, compr_errors, trot_errors
 
 
 def _append(times, states, compr_errors, trot_errors, tau, i, j, step_numbers,
