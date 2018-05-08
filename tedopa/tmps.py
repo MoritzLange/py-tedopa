@@ -616,7 +616,7 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
     accumulated_overlap = 1
     accumulated_trotter_error = 0
 
-    for i in range(step_numbers[-1]):
+    for i in range(step_numbers[-1] + 1):
         for j in range(c[i]):
             _append(times, states, compr_errors, trot_errors, tau, i, j,
                     step_numbers, subsystems, state, accumulated_overlap,
@@ -634,17 +634,18 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
                 accumulated_overlap *= state.compress(**trotter_compr)
         state = normalize(state, method)
         accumulated_trotter_error += tau ** 3
-        if (v == 1 or v == 2) and np.sqrt(i + 1) % 1 == 0:
+        if (v == 1 or v == 2) and np.sqrt(i + 1) % 1 == 0 and i < \
+                step_numbers[-1]:
             print(str(i + 1) + " Trotter iterations finished...")
             if v == 2:
                 print("Ranks: " + str(state.ranks))
-        if v == 3:
+        if v == 3 and i < step_numbers[-1]:
             print(str(i + 1) + " Trotter iterations finished...")
             print("Ranks: " + str(state.ranks))
 
     if v != 0:
         print("Done with time evolution")
-    return times, subsystems, states #, compr_errors, trot_errors
+    return times, subsystems, states  # , compr_errors, trot_errors
 
 
 def _append(times, states, compr_errors, trot_errors, tau, i, j, step_numbers,
