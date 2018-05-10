@@ -269,7 +269,7 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
     """
     Map the Hamiltonian of one site coupled to bosonic environmentself.
 
-    This function calculate the operators acting on every single site of the
+    This function calculates the operators acting on every single site of the
     resulting chain and the operators acting on every two adjacent sites in the
     chain from the local Hamiltonian and the spectral density.
 
@@ -282,7 +282,7 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
             that comprises the interaction Hamiltonian and is defined as A_hat
             in Chin et al.
         state_shape (list[list[int]]):
-            The shape of the chain on which the hamiltonian is to be applied.
+            The shape of the chain on which the Hamiltonian is to be applied.
             For example [[3, 3], [2, 2], [2, 2]] for a system comprised of 3
             sites, where the first one has 2 physical legs each of dimension 3,
             the second has 2 physical legs each of dimension 2 and so on.

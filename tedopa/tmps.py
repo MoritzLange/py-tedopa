@@ -14,10 +14,10 @@ from scipy.linalg import expm
 import mpnum as mp
 
 
-def _sort_subsystems(subsystems, step_numbers):
+def _get_subsystems_list(subsystems, len_step_numbers):
     """
-    List of subsystems for which the state should be returned at each time.
-    This function just brings subsystems in the right form and sorts it.
+    This function just brings subsystems, which indicates which subsystem
+    should be returned at the respective step number, in the right form.
 
     .. todo::
        Add doctest with example of the two types of allowed inputs.
@@ -29,17 +29,16 @@ def _sort_subsystems(subsystems, step_numbers):
     Args:
         subsystems (list):
             Same as that described in :func:`evolve`
-        step_numbers (list):
-            The Trotter slices at which the subsystem is saved. Same as the
-            first element from the output of _times_to_steps
+        len_step_numbers (int):
+            The length of the array containing the step numbers for which the
+            evolved state is to be stored.
     Returns:
         list[list[int]]:
             Sites for which the subsystem should be returned at the
             respective time,
     """
     if type(subsystems[0]) != list:
-        subsystems = [subsystems] * len(step_numbers)
-    subsystems = [x for _, x in sorted(zip(step_numbers, subsystems))]
+        subsystems = [subsystems] * len_step_numbers
     return subsystems
 
 
@@ -51,7 +50,7 @@ def _times_to_steps(ts, num_trotter_slices):
     would be step_numbers=[33, 83, 100]
 
     .. todo::
-       Convert this example into a doctest.
+       Convert this example into a doctest. Also include an unsorted example.
 
     Args:
         ts (list[float]):
@@ -71,8 +70,7 @@ def _times_to_steps(ts, num_trotter_slices):
         tuple[list[int], float]: step numbers, tau = maximal t /
         num_trotter_slices
     """
-    ts.sort()
-    tau = ts[-1] / num_trotter_slices
+    tau = max(ts) / num_trotter_slices
     step_numbers = [int(round(t / tau)) for t in ts]
     return step_numbers, tau
 
@@ -329,7 +327,7 @@ def _get_u_list_even(dims, h_single, h_adjacent, tau):
 
 def _u_list_to_mpo_odd(dims, u_odd, compr):
     """
-    Transforms list of matrices on odd-even sites to MPOs acting on full stateself.
+    Transforms list of matrices on odd-even sites to MPO acting on full state.
 
     .. todo::
        Give explicit form of the final MPO (tensor product of input matrices)
@@ -361,7 +359,7 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
 
 def _u_list_to_mpo_even(dims, u_even, compr):
     """
-    Transforms list of matrices on odd-even sites to MPOs acting on full state
+    Transforms list of matrices on odd-even sites to MPO acting on full state.
 
     .. todo::
        Give explicit form of the final MPO (tensor product of input matrices)
@@ -551,7 +549,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
     if subsystems == None:
         subsystems = [0, len(state)]
     step_numbers, tau = _times_to_steps(ts, num_trotter_slices)
-    subsystems = _sort_subsystems(subsystems, step_numbers)
+    subsystems = _get_subsystems_list(subsystems, len(step_numbers))
 
     us = _trotter_slice(hamiltonians=hamiltonians, tau=tau,
                         num_sites=len(state), trotter_order=trotter_order,
@@ -616,7 +614,7 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
     accumulated_overlap = 1
     accumulated_trotter_error = 0
 
-    for i in range(step_numbers[-1] + 1):
+    for i in range(max(step_numbers) + 1):
         for j in range(c[i]):
             _append(times, states, compr_errors, trot_errors, tau, i, j,
                     step_numbers, subsystems, state, accumulated_overlap,

@@ -10,7 +10,7 @@ Time evolution of one-dimensional quantum systems under local Hamiltonians is pr
 
 Time evolution of open quantum systems is implemented using TEDOPA (Time Evolving Density matrices using Orthogonal Polynomials Algorithm) as proposed and developed by [Prior et al 2010](http://link.aps.org/doi/10.1103/PhysRevLett.105.050404), [Chin et al 2010](http://aip.scitation.org/doi/10.1063/1.3490188) and [Rosenbach 2015](https://oparu.uni-ulm.de/xmlui/123456789/3945). TEDOPA enables open quantum simulation of open quantum systems such as spin-boson models.
 
-TEDOPA relies on a two-step approach to simulate quantum systems that a coupled linearly to their continuous environment via a given spectral density: first, the star-shaped system-environment interaction is mapped exactly to a semi-infinite one-dimensional chain with the system at one end of the chain; This chain is then simulated using standard matrix-product-states (MPS) methods.
+TEDOPA relies on a two-step approach to simulate quantum systems that are coupled linearly to their continuous environment via a given spectral density: first, the star-shaped system-environment interaction is mapped exactly to a semi-infinite one-dimensional chain with the system at one end of the chain; This chain is then simulated using standard matrix-product-states (MPS) methods.
 
 
 ## Installation

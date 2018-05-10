@@ -1,6 +1,6 @@
 """
-Test to see if the calculated recursion coefficients from
-_recursion_coefficients.py for some classical polynomials
+Test to see if the calculated recurrence coefficients from
+_recurrence_coefficients.py for some classical polynomials
 are actually the right ones.
 """
 
@@ -12,6 +12,8 @@ from tedopa import _recurrence_coefficients as rc
 
 precision = 1e-4
 ncap = 10000
+
+
 # One could demand higher precision but then ncap might
 # need to be higher which leads to longer computation times. For example
 # precision = 1e-5
@@ -20,7 +22,7 @@ ncap = 10000
 
 def test_chebyshev():
     """
-    Tests recursion coefficients of Chebyshev polynomials of first kind.
+    Tests recurrence coefficients of Chebyshev polynomials of first kind.
     """
     n = 100  # Number of coefficients to be checked
 
@@ -31,7 +33,7 @@ def test_chebyshev():
     # Calculate J from h^2 by adjusting the function and the boundaries
     j, lb, rb, g = convert_hsquared_to_j(h_squared, lb, rb, g)
 
-    # Calculate the recursion coefficients, the alphas and betas
+    # Calculate the recurrence coefficients, the alphas and betas
     alphas_n, betas_n = rc.recurrenceCoefficients(n=n - 1, g=g, j=j, lb=lb,
                                                   rb=rb, ncap=ncap)
 
@@ -44,21 +46,18 @@ def test_chebyshev():
 
 
 def test_legendre():
-    """Tests if the recursion coefficients calculated for the legendre
+    """Tests if the recurrence coefficients calculated for the legendre
     polynomials are the right ones.
     """
     n = 100  # Number of coefficients to be checked
 
-    lb = -1
-    rb = 1
+    lb, rb, g = -1, 1, 1
 
     def h_squared(x): return 1
 
-    g = 1
-
     j, lb, rb, g = convert_hsquared_to_j(h_squared, lb, rb, g)
 
-    # Calculate the recursion coefficients, the alphas and betas
+    # Calculate the recurrence coefficients, the alphas and betas
     alphas_n, betas_n = rc.recurrenceCoefficients(n=n - 1, g=g, j=j, lb=lb,
                                                   rb=rb, ncap=ncap)
 
@@ -71,21 +70,18 @@ def test_legendre():
 
 
 def test_hermite():
-    """Tests if the recursion coefficients calculated for the hermite
+    """Tests if the recurrence coefficients calculated for the hermite
     polynomials are the right ones.
     """
     n = 100  # Number of coefficients to be checked
 
-    lb = -np.inf
-    rb = np.inf
+    lb, rb, g = -np.inf, np.inf, 1
 
     def h_squared(x): return np.exp(- x ** 2)
 
-    g = 1
-
     j, lb, rb, g = convert_hsquared_to_j(h_squared, lb, rb, g)
 
-    # Calculate the recursion coefficients, the alphas and betas
+    # Calculate the recurrence coefficients, the alphas and betas
     alphas_n, betas_n = rc.recurrenceCoefficients(n=n - 1, g=g, j=j, lb=lb,
                                                   rb=rb, ncap=ncap)
 
@@ -100,7 +96,7 @@ def test_hermite():
 def generate_hermite_betas(n=10):
     """
     Generate the first n beta coefficients for monic hermite polynomials
-    Source for the recursion relation: calculated by hand
+    Source for the recurrence relation: calculated by hand
     :param n: Number of required coefficients
     :return: List of the first n coefficients
     """
@@ -110,7 +106,7 @@ def generate_hermite_betas(n=10):
 def generate_legendre_betas(n=10):
     """
     Generate the first n beta coefficients for monic legendre polynomials
-    Source for the recursion relation:
+    Source for the recurrence relation:
     http://people.math.gatech.edu/~jeanbel/6580/orthogPol13.pdf,
     accessed 11/07/17
     :param n: Number of required coefficients
@@ -126,7 +122,7 @@ def generate_legendre_betas(n=10):
 def generate_chebyshev_betas(n=10):
     """
     Generate the first n beta coefficients for monic chebyshev polynomials
-    Source for the recursion relation:
+    Source for the recurrence relation:
     https://www3.nd.edu/~zxu2/acms40390F11/sec8-3.pdf, accessed 11/07/17
     :param n: Number of required coefficients, must be >2
     :return: List of the first n coefficients
@@ -136,13 +132,14 @@ def generate_chebyshev_betas(n=10):
 
 def convert_hsquared_to_j(h_squared, lb, rb, g):
     """
-    Convert parameters to the requires input form of recursionCoefficients
+    Convert parameters to the requires input form of recurrenceCoefficients
 
-    Need to do this since recursionCoefficients does not take the weight function h^2 but J as an
+    Need to do this since recurrenceCoefficients does not take the weight function h^2 but J as an
     input
     """
 
     def j(x): return (math.pi / g) * h_squared(x / g)
+
     lb = lb * g
     rb = rb * g
-    return(j, lb, rb, g)
+    return (j, lb, rb, g)
