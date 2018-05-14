@@ -97,8 +97,8 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
 
     of :math:`H_j`. Here :math:`\\{\\tau_p\\}` is a sequence of real numbers
     such that :math:`\\sum_p \\tau_p = \\tau`. The :math:`H_{j_p}` for a
-    certain p are all elements of the Hamiltonian acting either on even or on
-    odd pairs of adjacent sites. This ensures that within one :math:`U_p`
+    certain :math:`p` are all elements of the Hamiltonian acting either on even
+    or on odd pairs of adjacent sites. This ensures that within one :math:`U_p`
     all terms in the exponential commute.
 
     This function returns the list of operators :math:`U_p` as MPOs.
@@ -180,19 +180,19 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     Based on the description in the documentation of _trotter_slice() and on
     the paper by Schollwöck, :math:`N` = 11, with
 
-    ..math::
+    .. math::
         \\tau_1 = \\tau_11 = \\frac{\\tau * .5}{4 - 4^{1/3}},
 
-    ..math::
+    .. math::
         \\tau_2 = \\tau_3 = \\tau_4 = \\tau_8 = \\tau_9 = \\tau_10 =
         \\frac{tau}{4 - 4^{1 / 3}},
 
-    ..math::
+    .. math::
         \\tau_5 = \\tau_7 = \\tau/2 * \\frac{1 - 3}{4 - 4^{1 / 3}},
 
     and
 
-    ..math::
+    .. math::
         \\tau_6 = \\tau * \\frac{1 - 4}{4 - 4^{1 / 3}}.
 
     Args:
