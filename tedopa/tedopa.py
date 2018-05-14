@@ -7,7 +7,7 @@ two-site open quantum systems via `tedopa1` and `tedopa2` and helper functions.
 .. todo::
    Decide if better to convert the arguments of tedopa1 and tedopa2 to kwargs.
 
-.. todo::tedopa2
+.. todo::
    Might be good to have a function to generate some common initial states of
    the chain. For example, the vacuum state mps/mpo/pmps. Eventually, one could
    think of adding a thermal state of a given Hamiltonian. This function could
@@ -27,7 +27,7 @@ def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
             trotter_compr=None, compr=None, g=1, trotter_order=2,
             num_trotter_slices=100, ncap=20000, v=0):
     """
-    Tedopa for a single site coupled to a bosonic bath.
+    TEDOPA for a single site coupled to a bosonic bath.
 
     This function proceeds in two steps: (i) Map the Hamiltonian from a system
     composed of one site that is linearly coupled to a reservoir of bosonic
@@ -150,9 +150,22 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
             gs=(1, 1), trotter_order=2, num_trotter_slices=100, ncap=20000,
             v=0):
     """
-    Mapping the Hamiltonian of a system composed of two sites, each linearly
-    coupled to a reservoir of bosonic modes, to a 1D chain and performing
-    time evolution.
+    TEDOPA for two sites coupled to each other and each individually to its own
+    bosonic bath.
+
+    This function proceeds in two steps: (i) Map the Hamiltonian from a system
+    composed of two coupled sites that are each linearly coupled to their
+    possibly distinct reservoir of bosonic modes with a given spectral
+    function to a 1D chain representing the whole setup and (ii) perform time
+    evolution.
+
+    The performed mapping is based on an algorithm introduced by Chin et al.
+    in Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188.
+
+    The inputs to this function include the initial state, the local
+    Hamiltonian, the spectral densities, time of evolution, query times and some
+    performance parameters. The output provides the MPAs of the evolved state at
+    the requested times.
 
     The first elements in the lists js, domains, etc. always refer to the
     first(left) site and the second elements in the lists refer to the
