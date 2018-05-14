@@ -77,7 +77,7 @@ def _times_to_steps(ts, num_trotter_slices):
 
 def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
     """
-    List of ordered operator exponentials for one Trotter slice
+    Get a list of ordered operator exponentials for one Trotter slice.
 
     The Trotter-Suzuki formula approximates the time-evlution during a single
     Trotter slice
@@ -96,8 +96,15 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
        U_p := {\\text{e}^{H_{j_p}\\tau_p}}
 
     of :math:`H_j`. Here :math:`\\{\\tau_p\\}` is a sequence of real numbers
-    such that :math:`\\sum_p \\tau_p = \\tau`. This function returns the list of
-    operators :math:`U_p` as MPOs.
+    such that :math:`\\sum_p \\tau_p = \\tau`. The :math:`H_{j_p}` for a
+    certain p are all elements of the Hamiltonian acting either on even or on
+    odd pairs of adjacent sites. This ensures that within one :math:`U_p`
+    all terms in the exponential commute.
+
+    This function returns the list of operators :math:`U_p` as MPOs.
+
+    For more information on Trotter-Suzuki, see chapter 7 in Schollwöck's paper
+    Annals of Physics 326, 96-192 (2011); doi: 10.1016/j.aop.2010.09.012.
 
     Args:
         hamiltonians (list):
@@ -130,11 +137,12 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
 
 def _trotter_two(hamiltonians, tau, num_sites, compr):
     """
-    List of ordered operator exponentials for one second-order Trotter slice
+    Get a list of ordered operator exponentials for one second-order Trotter
+    slice.
 
-    .. todo::
-       Write more about second-order Trotter-Suzuki decomposition here. Explicit
-       values of :math:`\\tau_p` from the above defition of trotter.
+    Based on the description in the documentation of _trotter_slice() and on
+    the paper by Schollwöck, :math:`N` = 3, with :math:`\\tau_1 =\\tau_3 =
+    \\tau/2` and :math:`\\tau_2=\\tau`.
 
     Args:
         hamiltonians (list):
@@ -166,12 +174,26 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
 
 def _trotter_four(hamiltonians, tau, num_sites, compr):
     """
-    List of ordered operator exponentials for one fourth-order Trotter slice
+    Get a list of ordered operator exponentials for one fourth-order Trotter
+    slice.
 
-    .. todo::
-       Write more about fourth-order Trotter-Suzuki decomposition here. Explicit
-       values of :math:`\\tau_p` from the above defition of Trotter.
+    Based on the description in the documentation of _trotter_slice() and on
+    the paper by Schollwöck, :math:`N` = 11, with
 
+    ..math::
+        \\tau_1 = \\tau_11 = \\frac{\\tau * .5}{4 - 4^{1/3}},
+
+    ..math::
+        \\tau_2 = \\tau_3 = \\tau_4 = \\tau_8 = \\tau_9 = \\tau_10 =
+        \\frac{tau}{4 - 4^{1 / 3}},
+
+    ..math::
+        \\tau_5 = \\tau_7 = \\tau/2 * \\frac{1 - 3}{4 - 4^{1 / 3}},
+
+    and
+
+    ..math::
+        \\tau_6 = \\tau * \\frac{1 - 4}{4 - 4^{1 / 3}}.
 
     Args:
         hamiltonians (list):
@@ -220,7 +242,7 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
 
 def _get_h_list(hamiltonians, num_sites):
     """
-    Convert given list of Hamiltonians into form suitable for exponentiation
+    Convert given list of Hamiltonians into form suitable for exponentiation.
 
     If only one Hamiltonian acting on every single site and one acting on every
     two adjacent sites is given, transform it into the form returned. If not,
@@ -516,8 +538,7 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_order,
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
             form required by mpnum.MPArray.compress(). If unsure, look at
-            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro
-            .ipynb.)
+            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro.ipynb .)
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See _set_compr_params()
             for more information.

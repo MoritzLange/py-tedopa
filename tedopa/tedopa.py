@@ -8,7 +8,6 @@ two-site open quantum systems via `tedopa1` and `tedopa2` and helper functions.
    Decide if better to convert the arguments of tedopa1 and tedopa2 to kwargs.
 
 .. todo::tedopa2
-
    Might be good to have a function to generate some common initial states of
    the chain. For example, the vacuum state mps/mpo/pmps. Eventually, one could
    think of adding a thermal state of a given Hamiltonian. This function could
@@ -70,8 +69,7 @@ def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
             form required by mpnum.MPArray.compress(). If unsure, look at
-            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro
-            .ipynb.)
+            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro.ipynb .)
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See
             tmps._set_compr_params() for more information.
@@ -192,8 +190,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
             form required by mpnum.MPArray.compress(). If unsure, look at
-            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro
-            .ipynb.)
+            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro.ipynb .)
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See
             tmps._set_compr_params() for more information.
