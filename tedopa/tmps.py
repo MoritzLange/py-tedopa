@@ -4,6 +4,10 @@ Time evolution of state given as MPS, MPO or PMPS via tMPS algorithm.
 Functions to calculate the time evolution of an operator in MPS, MPO or PMPS form
 from Hamiltonians acting on every single and every two adjacent sites.
 
+tMPS is an algorithm described in the documentation of the evolve()
+function and in more detail in chapter 7 in Schollwöck’s paper
+Annals of Physics 326, 96-192 (2011); doi: 10.1016/j.aop.2010.09.012
+
 """
 from collections import Counter
 from itertools import repeat
@@ -19,13 +23,6 @@ def _get_subsystems_list(subsystems, len_step_numbers):
     This function just brings subsystems, which indicates which subsystem
     should be returned at the respective step number, in the right form.
 
-    .. todo::
-       Add doctest with example of the two types of allowed inputs.
-
-    .. todo::
-       Raise exception if length of the subsystem list (of first type) differs
-       from the length of [step_numbers]
-
     Args:
         subsystems (list):
             Same as that described in :func:`evolve`
@@ -38,6 +35,9 @@ def _get_subsystems_list(subsystems, len_step_numbers):
             respective time,
     """
     if type(subsystems[0]) != list:
+        if len(subsystems) != 2:
+            raise ValueError("Subsystems must be of the form [a, b] or [[a1, "
+                             "a2, ...], [b1, b2, ...]].")
         subsystems = [subsystems] * len_step_numbers
     return subsystems
 
@@ -79,7 +79,7 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
     """
     Get a list of ordered operator exponentials for one Trotter slice.
 
-    The Trotter-Suzuki formula approximates the time-evlution during a single
+    The Trotter-Suzuki formula approximates the time-evolution during a single
     Trotter slice
 
     .. math::
@@ -181,19 +181,19 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     the paper by Schollwöck, :math:`N` = 11, with
 
     .. math::
-        \\tau_1 = \\tau_11 = \\frac{\\tau * .5}{4 - 4^{1/3}},
+        \\tau_1 = \\tau_{11} = \\frac{\\tau}{2(4 - 4^{1/3})},
 
     .. math::
-        \\tau_2 = \\tau_3 = \\tau_4 = \\tau_8 = \\tau_9 = \\tau_10 =
-        \\frac{tau}{4 - 4^{1 / 3}},
+        \\tau_2 = \\tau_3 = \\tau_4 = \\tau_8 = \\tau_9 = \\tau_{10} =
+        \\frac{\\tau}{4 - 4^{1 / 3}},
 
     .. math::
-        \\tau_5 = \\tau_7 = \\tau/2 * \\frac{1 - 3}{4 - 4^{1 / 3}},
+        \\tau_5 = \\tau_7 = \\frac{\\tau (1 - 3)}{2(4 - 4^{1 / 3})},
 
     and
 
     .. math::
-        \\tau_6 = \\tau * \\frac{1 - 4}{4 - 4^{1 / 3}}.
+        \\tau_6 = \\frac{\\tau (1 - 4)}{4 - 4^{1 / 3}}.
 
     Args:
         hamiltonians (list):
@@ -273,11 +273,9 @@ def _get_h_list(hamiltonians, num_sites):
 
 def _get_u_list_odd(dims, h_single, h_adjacent, tau):
     """
-    Calculates individual operator exponentials of adjacent odd-even sites
-
-    .. todo::
-       Mention the explicit expressions of the unitaries in terms of the
-       Hamiltonian terms.
+    Calculates individual operator exponentials of adjacent odd-even sites,
+    i.e. transforms :math:`\\{h_{odd}^j\\}` into :math:`\\{\\text{e}^{
+    \\mathrm{i} h_{odd}^j \\tau}\\}`
 
     .. todo::
        Add doctest that gives an example of the inputs and outputs. Use four
@@ -310,11 +308,9 @@ def _get_u_list_odd(dims, h_single, h_adjacent, tau):
 
 def _get_u_list_even(dims, h_single, h_adjacent, tau):
     """
-    Calculates individual operator exponentials of adjacent even-off sites
-
-    .. todo::
-       Mention the explicit expressions of the unitaries in terms of the
-       Hamiltonian terms.
+    Calculates individual operator exponentials of adjacent even-off sites,
+    i.e. transforms :math:`\\{h_{even}^j\\}` into :math:`\\{\\text{e}^{
+    \\mathrm{i} h_{even}^j \\tau}\\}`
 
     .. todo::
        Add doctest that gives an example of the inputs and outputs. Use four
@@ -349,10 +345,10 @@ def _get_u_list_even(dims, h_single, h_adjacent, tau):
 
 def _u_list_to_mpo_odd(dims, u_odd, compr):
     """
-    Transforms list of matrices on odd-even sites to MPO acting on full state.
-
-    .. todo::
-       Give explicit form of the final MPO (tensor product of input matrices)
+    Transforms list of matrices on odd-even sites to MPO acting on full
+    state. So the list of u_odd (:math:`\\{u_{odd}^j\\}`, which are
+    ``numpy.ndarrays``, is transformed into :math:`\\bigotimes_j u_{odd}^j` of
+    the type ``mpnum.MPArray``.
 
     Args:
         dims (list):
@@ -381,11 +377,10 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
 
 def _u_list_to_mpo_even(dims, u_even, compr):
     """
-    Transforms list of matrices on odd-even sites to MPO acting on full state.
-
-    .. todo::
-       Give explicit form of the final MPO (tensor product of input matrices)
-
+    Transforms list of matrices on even-odd sites to MPO acting on full
+    state. So the list of u_even (:math:`\\{u_{even}^j\\}`, which are
+    ``numpy.ndarrays``, is transformed into :math:`\\bigotimes_j u_{even}^j` of
+    the type ``mpnum.MPArray``.
 
     Args:
         dims (list):
@@ -495,10 +490,44 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_order,
            ts, trotter_compr=None, compr=None, subsystems=None,
            v=0):
     """
-    Evolve a state using tMPS under given Hamiltonians with given parameters
+    Evolve a state using tMPS under given Hamiltonians with given parameters.
+    tMPS is a method to evolve a one dimensional quantum state, represented
+    as an MPS, MPO or PMPS, in time. It requires that the Hamiltonian is only
+    comprised of terms acting on single sites or pairs of adjacent sites of
+    the state. This allows the Hamiltonian :math:`H` to be written as
 
-    .. todo::
-       Add some description about tmps here and in the module docstring. Add reference.
+    .. math::
+        H = \\sum_j h_{j, j+1}
+
+    These components can be grouped on those acting on even and those acting
+    on odd sites, leading to a time evolution operator
+
+    .. math::
+        U(\\tau) = \\text{e}^{\mathrm{i}(H_{\\text{even}}+H_{\\text{
+        odd}})\\tau},
+
+    with
+
+    .. math::
+        H_{\\text{even}} &= \\sum_{j\\text{ even}} h_{j, j+1} \\
+        H_{\\text{odd}} &= \\sum_{j\\text{ odd}} h_{j, j+1}
+
+    This allows to perform Trotter-Suzuki decompositions of :math:`U`,
+    for example of second order:
+
+    .. math::
+        U(\\tau) = \\text{e}^{\mathrm{i} H_{\\text{odd}} \\tau/2} \\text{e}^{\mathrm{i}
+        H_{\\text{even}} \\tau} \\text{e}^{\mathrm{i} H_{\\text{odd}} \\tau/2}
+        + \\mathcal{O}(\\tau^3).
+
+    These decompositions provide the advantage that :math:`U` does not need to
+    be calculated as a whole matrix, which could potentially become way too
+    big. Since the elements within :math:`H_{even}` and :math:`H_{\\text{
+    odd}}` commute, it can be broken up into smaller pieces which a computer
+    can handle even for very large systems.
+
+    For more information, see chapter 7 in Schollwöck’s paper Annals of
+    Physics 326, 96-192 (2011); doi: 10.1016/j.aop.2010.09.012
 
     .. todo:
        Raise exception if hamiltonians are not of the right dimension
