@@ -34,7 +34,8 @@ def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
     calls py-orthpol package to find the recurrence coefficients.
 
     For more details, see Journal of Mathematical Physics 51, 092109 (2010);
-    doi: 10.1063/1.3490188.
+    doi: 10.1063/1.3490188 and ACM Trans. Math. Softw. 20, 21-62 (1994);
+    doi: 10.1145/174603.174605
 
     Note that the input `j` must be a python lambda function representing the
     spectral density :math:`J(\omega)`
@@ -67,8 +68,8 @@ def recurrenceCoefficients(n, lb, rb, j, g, ncap=60000):
     # if the py-orthpol package was changed accordingly, adding the quadrature
     # points obtained there. But that turned out to return coefficients which
     # were too inaccurate for our purposes.
-    # The procedure does not work for ncap > 60000, it would return wrong values
-    # n must be < ncap for orthpol to work
+    # Also the procedure does not work for ncap > 60000, it would return wrong
+    # values. n must be < ncap for orthpol to work
 
     # ToDo: Check if ncap <= 60000 is system dependent or holds everywhere
 

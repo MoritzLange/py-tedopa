@@ -450,8 +450,28 @@ def normalize(state, method):
     return state
 
 
-def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
-           trotter_order, compr, ts, subsystems=None, v=0):
+def _set_compr_params():
+    """
+    A function to set default compression parameters if none were provided.
+    They will suffice in many cases, but might well lead to
+    problems described in the Pitfalls section of the introduction notebook.
+    If that is the case, try to find and provide your own suitable
+    compression parameters, which is also recommended to have more control
+    over the calculations and their precision. For more information on this,
+    read the introduction notebook and make use of the verbose output option to
+    monitor bond dimensions during calculations.
+
+    Returns:
+        list[dict]:
+            Some default compression and Trotter compression parameters
+    """
+    return dict(method='svd', relerr=1e-10), dict(method='svd', relerr=1e-4,
+                                                  rank=30)
+
+
+def evolve(state, hamiltonians, num_trotter_slices, method, trotter_order,
+           ts, trotter_compr=None, compr=None, subsystems=None,
+           v=0):
     """
     Evolve a state using tMPS under given Hamiltonians with given parameters
 
@@ -463,12 +483,6 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
 
     .. todo::
        Implement tracking of compression errors.
-
-    .. todo::
-        Implement different stages of verbose, so that the user can see
-        either nothing, or what's verbose right now (output after every n^2
-        Trotter step), or bond dimensions after every n^2 Trotter step,
-        or bond dimensions after every Trotter step.
 
     .. todo::
         Get variable compression to work (might involve changing mpnum).
@@ -488,18 +502,9 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             the largest t in ts.
         method (str):
             Which method to use. Either 'mps', 'mpo' or 'pmps'.
-        trotter_compr (dict):
-            Compression parameters used in the iterations of Trotter. If using
-            variational compression, then ``Startmpa`` will be set by the
-            algorithm, does not need to be specified. !!Variable compression
-            does not work at the moment!!
         trotter_order (int):
             Order of Trotter-Suzuki decomposition to be used. Currently only 2
             and 4 are implemented
-        compr (dict):
-            Parameters for the compression which is executed on every MPA during
-            the calculations, except for the Trotter calculation where
-            trotter_compr is used
         ts (list[float]):
             The times for which the evolution should be computed and the state
             of the full system or a subsystem returned (i.e. it's reduced
@@ -508,6 +513,26 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
             number in ts. On the way there it will store the evolved states for
             smaller times. NB: Beware of memory overload since len(t) number of
             mpnum.MPArrays will be stored
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter (in the
+            form required by mpnum.MPArray.compress(). If unsure, look at
+            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro
+            .ipynb.)
+            If omitted, some default compression will be used that will
+            probably work but might lead to problems. See _set_compr_params()
+            for more information.
+        compr (dict):
+            Parameters for the compression which is executed on every MPA during
+            the calculations, except for the Trotter calculation, where
+            trotter_compr is used. compr = dict(method='svd', rank=10) would for
+            example ensure that the ranks of any MPA never exceed 10 during all
+            of the calculations. An accepted relative error for the
+            compression can be provided in addition to or instead of ranks,
+            which would lead to e.g.
+            compr = dict(method='svd', rank=10, relerr=1e-12).
+            If omitted, some default compression will be used that will
+            probably work but might lead to problems. See _set_compr_params()
+            for more information.
         subsystems (list):
             A list defining for which subsystem the reduced density matrix or
             whether the full state should be returned for a time in ``ts``.
@@ -541,6 +566,8 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_compr,
     """
     state.compress(**compr)
     state = normalize(state, method)
+    if compr is None: compr, _ = _set_compr_params()
+    if trotter_compr is None: _, trotter_compr = _set_compr_params()
     if len(state) < 3:
         raise ValueError("State has too few sites")
     if (np.array(ts) == 0).all():

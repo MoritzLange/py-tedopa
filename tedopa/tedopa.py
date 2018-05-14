@@ -24,9 +24,9 @@ from tedopa import _recurrence_coefficients as rc
 from tedopa import tmps
 
 
-def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
-            ts_full, ts_system, g, trotter_order=2, num_trotter_slices=100,
-            ncap=20000, v=0):
+def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
+            trotter_compr=None, compr=None, g=1, trotter_order=2,
+            num_trotter_slices=100, ncap=20000, v=0):
     """
     Tedopa for a single site coupled to a bosonic bath.
 
@@ -34,6 +34,9 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
     composed of one site that is linearly coupled to a reservoir of bosonic
     modes with a given spectral function to the same site coupled to a 1D chain
     of bosonic modes and (ii) perform time evolution.
+
+    The performed mapping is based on an algorithm introduced by Chin et al.
+    in Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188.
 
     The inputs to this function include the initial state, the local
     Hamiltonian, the spectral density, time of evolution, query times and some
@@ -53,15 +56,6 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
         method (str):
             The parameterization of the intial state. Either 'mps', 'mpo' or
             'pmps'. Determines which method is used in the simulation.
-        trotter_compr (dict):
-            Compression parameters used in the iterations of Trotter (in the
-            form used by mpnum.compress())
-        compr (dict):
-            Parameters for the compression which is executed on every MPA during
-            the calculations, except for the Trotter calculation, where
-            trotter_compr is used. compr = dict(method='svd', rank=10) would for
-            example ensure that the ranks of any MPA never exceed 10 during all
-            of the calculations.
         j (types.LambdaType):
             Spectral function J(omega) as defined in Chin et al.
             doi: 10.1063 / 1.3490188
@@ -73,6 +67,26 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
         ts_system (list[float]):
             The times for which the evolution should be computed and the reduced
             density matrix of only the system should be returned.
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter (in the
+            form required by mpnum.MPArray.compress(). If unsure, look at
+            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro
+            .ipynb.)
+            If omitted, some default compression will be used that will
+            probably work but might lead to problems. See
+            tmps._set_compr_params() for more information.
+        compr (dict):
+            Parameters for the compression which is executed on every MPA during
+            the calculations, except for the Trotter calculation, where
+            trotter_compr is used. compr = dict(method='svd', rank=10) would for
+            example ensure that the ranks of any MPA never exceed 10 during all
+            of the calculations. An accepted relative error for the
+            compression can be provided in addition to or instead of ranks,
+            which would lead to e.g.
+            compr = dict(method='svd', rank=10, relerr=1e-12).
+            If omitted, some default compression will be used that will
+            probably work but might lead to problems. See
+            tmps._set_compr_params() for more information.
         g (float):
             Cutoff g, assuming that for J(omega) it is g(omega)=g*omega
         trotter_order (int):
@@ -103,22 +117,6 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
             and ts_system, since the ones in times have to be multiples of
             tau). The second list is an array of the corresponding evolved
             states.
-
-    .. todo::
-       Need to define the default trotter and other compression parameters for
-       tedopa1 and tedopa2. One possibility is to check if the Compression
-       paramters are none, then call a function that assigns reasonable
-       parameters.
-
-    .. todo::
-       Add link to mpnum.compress() or more complete description of compression
-       parameters with examples.
-
-    .. todo::
-       Need to improve references to Chin et al. and other papers. Add
-       references.
-
-
     """
     state_shape = state.shape
     if len(domain) != 2:
@@ -131,11 +129,11 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
         raise ValueError("The provided state has no chain representing the \
                          mapped environment. Check state.shape.")
 
-    if v!=0:
+    if v != 0:
         print("Calculating the TEDOPA mapping...")
     singlesite_ops, twosite_ops = map(h_loc, a, state_shape,
                                       j, domain, g, ncap)
-    if v!=0:
+    if v != 0:
         print("Proceeding to tmps...")
 
     ts, subsystems = get_times(ts_full, ts_system, len(state), 0, 1)
@@ -149,10 +147,10 @@ def tedopa1(h_loc, a, state, method, trotter_compr, compr, j, domain,
     return times, states
 
 
-def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr, js,
-            domains, ts_full, ts_system, gs=(1, 1), trotter_order=2,
-            num_trotter_slices=100,
-            ncap=20000, v=0):
+def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
+            domains, ts_full, ts_system, trotter_compr=None, compr=None,
+            gs=(1, 1), trotter_order=2, num_trotter_slices=100, ncap=20000,
+            v=0):
     """
     Mapping the Hamiltonian of a system composed of two sites, each linearly
     coupled to a reservoir of bosonic modes, to a 1D chain and performing
@@ -176,18 +174,9 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
             'pmps'. Determines which method is used in the simulation.
         sys_position (int):
             Which index, in the chain representing the state, is the position of
-            the first site of the system (starting at 0). E.g. sys_position =2
+            the first site of the system (starting at 0). E.g. sys_position = 2
             if the chain-length is is 6 and sites are of the form
             env-env-sys-sys-env-env.
-        trotter_compr (dict):
-            Compression parameters used in the iterations of Trotter (in the
-            form used by mpnum.compress())
-        compr (dict):
-            Parameters for the compression which is executed on every MPA during
-            the calculations, except for the Trotter calculation, where
-            trotter_compr is used. compr = dict(method='svd', rank=10) would for
-            example ensure that the ranks of any MPA never exceed 10 during all
-            of the calculations.
         js (list[types.LambdaType]):
             Spectral functions J(omega) for the two environments as defined by
             Chin et al
@@ -200,6 +189,26 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
         ts_system (list[float]):
             The times for which the evolution should be computed and the reduced
             density matrix of only the system should be returned.
+        trotter_compr (dict):
+            Compression parameters used in the iterations of Trotter (in the
+            form required by mpnum.MPArray.compress(). If unsure, look at
+            https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro
+            .ipynb.)
+            If omitted, some default compression will be used that will
+            probably work but might lead to problems. See
+            tmps._set_compr_params() for more information.
+        compr (dict):
+            Parameters for the compression which is executed on every MPA during
+            the calculations, except for the Trotter calculation, where
+            trotter_compr is used. compr = dict(method='svd', rank=10) would for
+            example ensure that the ranks of any MPA never exceed 10 during all
+            of the calculations. An accepted relative error for the
+            compression can be provided in addition to or instead of ranks,
+            which would lead to e.g.
+            compr = dict(method='svd', rank=10, relerr=1e-12).
+            If omitted, some default compression will be used that will
+            probably work but might lead to problems. See
+            tmps._set_compr_params() for more information.
         gs (list[float]):
             Cutoff g, assuming that for J(omega) it is g(omega)=g*omega
         trotter_order (int):
@@ -230,18 +239,27 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
             and ts_system, since the ones in times have to be multiples of
             tau). The second list is an array of the corresponding evolved
             states.
-
-    .. todo::
-       Raise exceptions if the state shapes are not sensible
-
     """
     state_shape = state.shape
+    if len(domains[0]) != 2 or len(domains[1]) != 2:
+        raise ValueError("A domain needs to be of the form [x1, x2]")
+    if len(a_twosite[0]) != state_shape[sys_position][0]:
+        raise ValueError(
+            "Dimension of 'a_twosite[0]' must be the same as that of the \
+            first site of the system.")
+    if len(a_twosite[1]) != state_shape[sys_position + 1][0]:
+        raise ValueError(
+            "Dimension of 'a_twosite[1]' must be the same as that of the \
+            second site of the system.")
+    if len(state_shape) < 3:
+        raise ValueError("The provided state has no chain representing the \
+                         mapped environment. Check state.shape.")
 
-    if v!=0:
+    if v != 0:
         print("Calculating the TEDOPA mapping...")
     left_ops = map(np.zeros([state_shape[sys_position][0]] * 2),
                    a_twosite[0], list(
-                       reversed(state_shape[:sys_position + 1:])),
+            reversed(state_shape[:sys_position + 1:])),
                    js[0], domains[0], gs[0], ncap)
     singlesite_ops_left, twosite_ops_left = [list(reversed(i)) for i in
                                              left_ops]
@@ -252,7 +270,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, trotter_compr, compr,
     singlesite_ops = singlesite_ops_left + singlesite_ops_right
     twosite_ops = twosite_ops_left + [h_loc] + twosite_ops_right
 
-    if v!=0:
+    if v != 0:
         print("Proceeding to tmps...")
 
     ts, subsystems = get_times(ts_full, ts_system, len(state), sys_position, 2)
@@ -272,6 +290,9 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
     This function calculates the operators acting on every single site of the
     resulting chain and the operators acting on every two adjacent sites in the
     chain from the local Hamiltonian and the spectral density.
+
+    The mapping is based on an algorithm introduced by Chin et al. in
+    Journal of Mathematical Physics 51, 092109 (2010); doi: 10.1063/1.3490188.
 
     Args:
         h_loc (numpy.ndarray):
@@ -304,7 +325,7 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
             other with adjacent-site operators that act on two sites. See the
 
     .. todo::
-        See the what?
+        See the what? There's something missing in the Returns.
 
     """
     params = _get_parameters(
@@ -313,7 +334,7 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
     bs = [_get_annihilation_op(dim) for dim in dims_chain[1::]]
     b_daggers = [b.T for b in bs]
     return _get_singlesite_ops(h_loc, params, bs, b_daggers), \
-        _get_twosite_ops(a, params, bs, b_daggers)
+           _get_twosite_ops(a, params, bs, b_daggers)
 
 
 def _get_singlesite_ops(h_loc, params, bs, b_daggers):
@@ -360,7 +381,7 @@ def _get_twosite_ops(a, params, bs, b_daggers):
     omegas, ts, c0 = params
     twosite_ops = [ts[i] * (
         np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for
-        i in range(len(bs) - 1)]
+                   i in range(len(bs) - 1)]
     twosite_ops = [c0 * np.kron(a, bs[0] + b_daggers[0])] + twosite_ops
 
     return twosite_ops
@@ -446,7 +467,6 @@ def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
         tuple(list[float], list[list[int]]):
             Times and subsystems in the form that has to be provided to
             tmps.evolve()
-
     """
     ts = list(ts_full) + list(ts_system)
     subsystems = [[0, len_state]] * len(ts_full) + \
