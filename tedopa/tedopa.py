@@ -168,7 +168,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
     the requested times.
 
     The first elements in the lists js, domains, etc. always refer to the
-    first(left) site and the second elements in the lists refer to the
+    first (left) site and the second elements in the lists refer to the
     second (right) site of the system
 
     Args:

@@ -37,12 +37,20 @@ for example of second order:
 
 These decompositions provide the advantage that :math:`U` does not need to
 be calculated as a whole matrix, which could potentially become way too
-big. Since the elements within :math:`H_{\\text{even}}` and
-:math:`H_{\\text{odd}}` commute, it can be broken up into smaller pieces
+big. Since the elements within :math:`H_{\\text{even}}` and those within
+:math:`H_{\\text{odd}}` commute, :math:`U` can be broken up into smaller pieces
 which a computer can handle even for very large systems.
 
 For more information, see chapter 7 in Schollwöck’s paper Annals of
 Physics 326, 96-192 (2011); doi: 10.1016/j.aop.2010.09.012
+
+In this file, ``evolve()`` is the main function to be called to evolve a
+state in time. It will itself call ``_trotter_slice()`` which will call
+``_trotter_two()`` or ``_trotter_four()`` to calculate the :math:`U(\\tau)`
+representing one Trotter slice. When that is done, ``evolve()`` will take it
+and pass it on to ``_time_evolution()`` which will then go through the
+Trotter iterations, thus actually evolving the state in time, and store the
+requested results on the way.
 """
 from collections import Counter
 from itertools import repeat
@@ -79,13 +87,14 @@ def _get_subsystems_list(subsystems, len_step_numbers):
 
 def _times_to_steps(ts, num_trotter_slices):
     """
-    Calculate Trotter step numbers at which subsystem states should be saved
+    Based on the requested times `ts`, calculate Trotter step numbers at which
+    (subsystems of) evolved states need to be saved.
 
-    If ts=[10, 25, 30] and num_trotter_slices was 100, then the result
-    would be step_numbers=[33, 83, 100]
-
-    .. todo::
-       Convert this example into a doctest. Also include an unsorted example.
+    Doctests:
+    >>> _times_to_steps([10, 25, 30], 100)
+    ([33, 83, 100], 0.3)
+    >>> _times_to_steps([8, 26, 19], 80)
+    ([25, 80, 58], 0.325)
 
     Args:
         ts (list[float]):
@@ -309,12 +318,20 @@ def _get_h_list(hamiltonians, num_sites):
 def _get_u_list_odd(dims, h_single, h_adjacent, tau):
     """
     Calculates individual operator exponentials of adjacent odd-even sites,
-    i.e. transforms :math:`\\{h_{\\text{odd}}^j\\}` into :math:`\\{\\text{e}^{
-    \\mathrm{i} h_{\\text{odd}}^j \\tau}\\}`
+    i.e. transforms :math:`\\{h_{j, j+1} : j \\text{ odd}\\}` into :math:`\\{
+    \\text{e}^{\\mathrm{i} h_{j,j+1} \\tau} : j \\text{ odd}\\}`
 
-    .. todo::
-       Add doctest that gives an example of the inputs and outputs. Use four
-       sites, ``H_single = Z, h_adj  = XX``
+    Doctest:
+    >>> dims = [2, 2, 2, 2]
+    >>> sx = np.array([[0, 1], [1, 0]])
+    >>> sz = np.array([[1, 0], [0, -1]])
+    >>> tau = 1
+    >>> actual_result = _get_u_list_odd(dims, [sx] * 4, [np.kron(sz, sz)] * 3, \
+        tau)
+    >>> expected_result = [expm(-1j * tau * (np.kron(sz,sz) + \
+        .5 * (np.kron(sx, np.identity(2)) + np.kron(np.identity(2), sx))))] * 2
+    >>> print(np.array_equal(expected_result, actual_result))
+    True
 
     Args:
         dims (list):
@@ -344,8 +361,8 @@ def _get_u_list_odd(dims, h_single, h_adjacent, tau):
 def _get_u_list_even(dims, h_single, h_adjacent, tau):
     """
     Calculates individual operator exponentials of adjacent even-odd sites,
-    i.e. transforms :math:`\\{h_{\\text{even}}^j\\}` into :math:`\\{\\text{e}^{
-    \\mathrm{i} h_{\\text{even}}^j \\tau}\\}`
+    i.e. transforms :math:`\\{h_{j,j+1} : j \\text{ even}\\}` into :math:`\\{
+    \\text{e}^{\\mathrm{i} h_{j,j+1} \\tau} : j \\text{ even}\\}`
 
     .. todo::
        Add doctest that gives an example of the inputs and outputs. Use four
@@ -381,9 +398,9 @@ def _get_u_list_even(dims, h_single, h_adjacent, tau):
 def _u_list_to_mpo_odd(dims, u_odd, compr):
     """
     Transforms list of matrices on odd-even sites to MPO acting on full
-    state. So the list of u_odd :math:`\\{u_{\\text{odd}}^j\\}`, which are
-    ``numpy.ndarrays``, is transformed into :math:`\\bigotimes_j u_{\\text{odd}}^j` of
-    the type ``mpnum.MPArray``.
+    state. So the list of u_odd :math:`\\{u_{j,j+1} : j \\text{ odd}\\}`,
+    which are ``numpy.ndarrays``, is transformed into :math:`\\bigotimes_j
+    u_{j,j+1} : j \\text{ odd}` of the type ``mpnum.MPArray``.
 
     Args:
         dims (list):
@@ -413,9 +430,9 @@ def _u_list_to_mpo_odd(dims, u_odd, compr):
 def _u_list_to_mpo_even(dims, u_even, compr):
     """
     Transforms list of matrices on even-odd sites to MPO acting on full
-    state. So the list of u_even :math:`\\{u_{\\text{even}}^j\\}`, which are
-    ``numpy.ndarrays``, is transformed into :math:`\\bigotimes_j u_{\\text{even}}^j` of
-    the type ``mpnum.MPArray``.
+    state. So the list of u_even :math:`\\{u_{j,j+1} : j \\text{ even}\\}`,
+    which are ``numpy.ndarrays``, is transformed into :math:`\\bigotimes_j
+    u_{j,j+1} : j \\text{ even}` of the type ``mpnum.MPArray``.
 
     Args:
         dims (list):
@@ -446,11 +463,16 @@ def matrix_to_mpo(matrix, shape, compr=None):
     """
     Convert matrix to MPO
 
-    Converts given MxN matrix in global form into an MPO with the given
-    shape. The number of legs per site must be the same for all sites.
+    Converts given :math:`M \\times N` matrix in global form into an MPO with
+    the given shape. The number of legs per site must be the same for all sites.
 
-    .. todo::
-       Add doctest. Can use to_array on the output MPO to display results.
+    Doctest:
+    >>> matrix = np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]])
+    >>> mpo = matrix_to_mpo(matrix, [[3, 3]])
+    >>> print(mpo.to_array_global())
+    [[1 0 0]
+     [0 0 0]
+     [0 0 0]]
 
     Args:
         matrix (numpy.ndarray):
