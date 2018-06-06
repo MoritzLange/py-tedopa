@@ -31,8 +31,9 @@ def create_bosonic_vacuum_state(system_site_states, len_chain, dim_oscillators):
     """
     This function will create the state of a system, comprised of one or two
     sites, each connected to a (possibly distinct) environment of bosonic
-    modes in vacuum state. It is assumed that the state is not entangled,
-    which means it can be represented as an MPS rather than an MPO.
+    modes in vacuum state. It is assumed that the state is not entangled and
+    the single sites of the system are each in a pure state. It will be
+    represented as an MPS rather than an MPO.
 
     Args:
         system_site_states (list[numpy.ndarray]): List of the vectors
@@ -234,7 +235,8 @@ def calculate_expectation_values(states, observable):
     evolved states of the same system at different times.
 
     Args:
-        states (list[mpnum.MPArray]): List of states :math:`\\{\\rho\\}`
+        states (list[mpnum.MPArray]): List of states :math:`\\{\\rho\\}`.
+            They are assumed to be MPOs
         observable (numpy.ndarray): The matrix representing the observable
             :math:`M` in global form (as opposed to local form. Global form
             is just the usual form to write matrices in QM. For more

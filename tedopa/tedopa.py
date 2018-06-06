@@ -329,9 +329,7 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
             Terms of the effective Hamiltonian acting on the chain after the
             chain mapping. Two lists, one with the single-site operators and the
             other with adjacent-site operators that act on two sites. See the
-
-    .. todo::
-        See the what? There's something missing in the Returns.
+            input parameters of ``tedopa.tmps.evolve()``
 
     """
     params = _get_parameters(
