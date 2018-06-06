@@ -1,8 +1,10 @@
 """
-Time evolution of state given as MPS, MPO or PMPS via tMPS algorithm.
+This module provides functions for time evolution of a state given as MPS,
+MPO or PMPS via the tMPS algorithm.
 
-Functions to calculate the time evolution of an operator in MPS, MPO or PMPS form
-from Hamiltonians acting on every single and every two adjacent sites.
+This is based on functions which calculate the time evolution of an operator in
+MPS, MPO or PMPS form from Hamiltonians acting on every single and every two
+adjacent sites.
 
 tMPS is a method to evolve a one dimensional quantum state, represented
 as an MPS, MPO or PMPS, in time. It requires that the Hamiltonian is only
@@ -309,7 +311,7 @@ def _get_h_list(hamiltonians, num_sites):
         hamiltonians = [list(repeat(hamiltonians[0], num_sites)),
                         list(repeat(hamiltonians[1], num_sites - 1))]
     elif (len(hamiltonians[0]) != num_sites) or (
-                len(hamiltonians[1]) != num_sites - 1):
+            len(hamiltonians[1]) != num_sites - 1):
         raise ValueError(
             "Number of given Hamiltonians does not match number of sites")
     return hamiltonians[0], hamiltonians[1]
@@ -641,10 +643,10 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_order,
             full states will still be MPSs, the reduced ones will be MPOs.
 
     """
-    state.compress(**compr)
-    state = normalize(state, method)
     if compr is None: compr, _ = _set_compr_params()
     if trotter_compr is None: _, trotter_compr = _set_compr_params()
+    state.compress(**compr)
+    state = normalize(state, method)
     if len(state) < 3:
         raise ValueError("State has too few sites")
     if (np.array(ts) == 0).all():

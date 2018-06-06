@@ -1,5 +1,5 @@
 """
-Tests for the functions in py-tedopa.tedopa.py
+Tests for the functions in tedopa/tedopa.py
 """
 
 from random import randint

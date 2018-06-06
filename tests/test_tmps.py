@@ -1,5 +1,5 @@
 """
-Tests for the basic functions in py-tedopa.tmps.py
+Tests for the basic functions in tedopa/tmps.py
 To check if the whole time evolution works (i.e. the more advanced functions
 orchestrating the basic functions) see test_tmps_for_transverse_ising_model.py
 """

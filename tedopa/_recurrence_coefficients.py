@@ -1,5 +1,6 @@
 """
-Functions to calculate recurrence coefficients, based on the package py-orthpol.
+This module contains functions to calculate recurrence coefficients, based on
+the package py-orthpol.
 """
 import math
 

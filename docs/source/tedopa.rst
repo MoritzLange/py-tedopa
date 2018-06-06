@@ -18,6 +18,15 @@ tedopa.tedopa module
     :show-inheritance:
     :private-members:
 
+tedopa.tedopa_models module
+---------------------------
+
+.. automodule:: tedopa.tedopa_models
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :private-members:
+
 tedopa._recurrence_coefficients module
 --------------------------------------
 

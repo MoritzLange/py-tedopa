@@ -1,19 +1,10 @@
 """
-Functions for time evolution of one or two sites in bosonic environment.
-
 This module comprises functions for simulating the time-evolution of one- and
-two-site open quantum systems via `tedopa1` and `tedopa2` and helper functions.
+two-site open quantum systems in a bosonic environment via `tedopa1` and
+`tedopa2` and helper functions.
 
 .. todo::
    Decide if better to convert the arguments of tedopa1 and tedopa2 to kwargs.
-
-.. todo::
-   Might be good to have a function to generate some common initial states of
-   the chain. For example, the vacuum state mps/mpo/pmps. Eventually, one could
-   think of adding a thermal state of a given Hamiltonian. This function could
-   be made of the first three lines of the example notebook. Advantage: makes
-   the code accessible for  users not experienced in mpnum but with some
-   understanding of mps.
 
 """
 
@@ -48,18 +39,18 @@ def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
             system.
         a (numpy.ndarray):
             Interaction operator. This is the site-part of the tensor product
-            that comprises the interaction Hamiltonian and is defined as A_hat
-            in Chin et al.
+            that comprises the interaction Hamiltonian and is defined as
+            :math:`\\hat{A}` in Chin et al.
         state (mpnum.MPArray):
             The initial state of the system which is to be evolved.
         method (str):
             The parameterization of the intial state. Either 'mps', 'mpo' or
             'pmps'. Determines which method is used in the simulation.
         j (types.LambdaType):
-            Spectral function J(omega) as defined in Chin et al.
-            doi: 10.1063 / 1.3490188
+            Spectral function :math:`J(\\omega)` as defined in Chin et al.
         domain (list[float]):
-            Domain on which j is defined, for example [0, np.inf]
+            Domain on which :math:`J(\\omega)` is defined, for example [0,
+            np.inf]
         ts_full (list[float]):
             The times for which the evolution should be computed and the whole
             state chain returned.
@@ -86,7 +77,8 @@ def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
             probably work but might lead to problems. See
             tmps._set_compr_params() for more information.
         g (float):
-            Cutoff g, assuming that for J(omega) it is g(omega)=g*omega
+            Cutoff :math:`g`, assuming that for :math:`J(\\omega)` it is
+            :math:`g(\\omega)=g\\omega`.
         trotter_order (int):
             Order of Trotter - Suzuki decomposition to be used. Currently only 2
             and 4 are implemented
@@ -189,11 +181,11 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
             if the chain-length is is 6 and sites are of the form
             env-env-sys-sys-env-env.
         js (list[types.LambdaType]):
-            Spectral functions J(omega) for the two environments as defined by
-            Chin et al
+            Spectral functions :math:`J(\\omega)` for the two environments as
+            defined by Chin et al.
         domains (list[list[float]]):
-            Domains on which the js are defined. Can be different for the two
-            sites, for example, [[0, np.inf], [0,1]]
+            Domains on which the :math:`J(\\omega)` are defined. Can be
+            different for the two sites, for example, [[0, np.inf], [0,1]]
         ts_full (list[float]):
             The times for which the evolution should be computed and the whole
             state chain returned.
@@ -220,7 +212,8 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
             probably work but might lead to problems. See
             tmps._set_compr_params() for more information.
         gs (list[float]):
-            Cutoff g, assuming that for J(omega) it is g(omega)=g*omega
+            List of cutoffs :math:`g`, assuming that for :math:`J(\\omega)`
+            it is :math:`g(\\omega)=g\\omega`.
         trotter_order (int):
             Order of Trotter-Suzuki decomposition to be used. Currently only 2
             and 4 are implemented
@@ -310,23 +303,26 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
             system.
         a (numpy.ndarray):
             Interaction operator. This is the site-part of the tensor product
-            that comprises the interaction Hamiltonian and is defined as A_hat
-            in Chin et al.
+            that comprises the interaction Hamiltonian and is defined as
+            :math:`\\hat{A}` in Chin et al. doi: 10.1063 / 1.3490188
         state_shape (list[list[int]]):
             The shape of the chain on which the Hamiltonian is to be applied.
             For example [[3, 3], [2, 2], [2, 2]] for a system comprised of 3
             sites, where the first one has 2 physical legs each of dimension 3,
             the second has 2 physical legs each of dimension 2 and so on.
-            This is the typical MPA shape used by mpnum
-            (state.shape if state is an mpnum.MPArray).
+            This is the typical MPA shape used by ``mpnum``
+            (``state.shape`` if ``state`` is an ``mpnum.MPArray``).
         j (types.LambdaType):
-            Spectral function J(omega) as defined in Chin et al.
+            Spectral function :math:`J(\\omega)` as defined in Chin et al.
+            doi: 10.1063 / 1.3490188
         domain (list[float]):
-            Domain on which j is defined, for example [0, np.inf]
+            Domain on which :math:`J(\\omega)` is defined, for example [0,
+            np.inf]
         g (float):
-            Constant g, assuming that for J(omega) it is g(omega)=g*omega
+            Constant :math:`g`, assuming that for :math:`J(\\omega)` it is
+            :math:`g(\\omega)=g\\omega`.
         ncap (int):
-            Number internally used by py-orthpol.
+            Number internally used by ``py-orthpol``.
 
     Returns:
         list[list[numpy.ndarray]]:
@@ -353,7 +349,7 @@ def _get_singlesite_ops(h_loc, params, bs, b_daggers):
 
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian
-        params (list): Parameters as returned by _get_parameters()
+        params (list): Parameters as returned by ``_get_parameters()``
         bs (list): The list of annihilation operators acting on each site
             of the chain
         b_daggers (list): The list of creation operators acting on each site
@@ -390,7 +386,8 @@ def _get_twosite_ops(a, params, bs, b_daggers):
     """
     omegas, ts, c0 = params
     twosite_ops = [ts[i] * (
-        np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1])) for
+            np.kron(bs[i], b_daggers[i + 1]) + np.kron(b_daggers[i], bs[i + 1]))
+                   for
                    i in range(len(bs) - 1)]
     twosite_ops = [c0 * np.kron(a, bs[0] + b_daggers[0])] + twosite_ops
 
@@ -407,16 +404,19 @@ def _get_parameters(n, j, domain, g, ncap):
             (rc.recurrenceCoefficients() actually returns one more and the
             system site does not need one, so the argument n-2 is passed)
         j (types.LambdaType):
-            spectral function J(omega) as defined by Chin et al.
+            Spectral function :math:`J(\\omega)` as defined in Chin et al.
+            doi: 10.1063 / 1.3490188
         domain (list[float]):
-            Domain on which j is defined, for example [0, np.inf]
+            Domain on which :math:`J(\\omega)` is defined, for example [0,
+            np.inf]
         g (float):
-            Constant g, assuming that for J(omega) it is g(omega)=g*omega
+            Constant :math:`g`, assuming that for :math:`J(\\omega)` it is
+            :math:`g(\\omega)=g\\omega`.
         ncap (int):
-            Number internally used by py-orthpol to determine accuracy of the
-            returned recurrence coefficients. Must be <= 60000, the higher the
-            longer the calculation of the recurrence coefficients takes and the
-            more accurate it becomes.
+            Number internally used by ``py-orthpol`` to determine accuracy of
+            the returned recurrence coefficients. Must be <= 60000,
+            the higher the longer the calculation of the recurrence
+            coefficients takes and the more accurate it becomes.
 
     Returns:
         list[list[float], list[float], float]:
