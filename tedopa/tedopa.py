@@ -1,7 +1,7 @@
 """
 This module comprises functions for simulating the time-evolution of one- and
-two-site open quantum systems in a bosonic environment via `tedopa1` and
-`tedopa2` and helper functions.
+two-site open quantum systems in a bosonic environment via :func:`tedopa1` and
+:func:`tedopa2` and helper functions.
 
 .. todo::
    Decide if better to convert the arguments of tedopa1 and tedopa2 to kwargs.
@@ -59,11 +59,11 @@ def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
             density matrix of only the system should be returned.
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
-            form required by mpnum.MPArray.compress(). If unsure, look at
+            form required by :func:`mpnum.MPArray.compress`. If unsure, look at
             https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro.ipynb .)
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See
-            tmps._set_compr_params() for more information.
+            :func:`tmps._set_compr_params` for more information.
         compr (dict):
             Parameters for the compression which is executed on every MPA during
             the calculations, except for the Trotter calculation, where
@@ -75,7 +75,7 @@ def tedopa1(h_loc, a, state, method, j, domain, ts_full, ts_system,
             compr = dict(method='svd', rank=10, relerr=1e-12).
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See
-            tmps._set_compr_params() for more information.
+            :func:`tmps._set_compr_params` for more information.
         g (float):
             Cutoff :math:`g`, assuming that for :math:`J(\\omega)` it is
             :math:`g(\\omega)=g\\omega`.
@@ -194,11 +194,11 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
             density matrix of only the system should be returned.
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
-            form required by mpnum.MPArray.compress(). If unsure, look at
+            form required by :func:`mpnum.MPArray.compress`. If unsure, look at
             https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro.ipynb .)
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See
-            tmps._set_compr_params() for more information.
+            :func:`tmps._set_compr_params` for more information.
         compr (dict):
             Parameters for the compression which is executed on every MPA during
             the calculations, except for the Trotter calculation, where
@@ -210,7 +210,7 @@ def tedopa2(h_loc, a_twosite, state, method, sys_position, js,
             compr = dict(method='svd', rank=10, relerr=1e-12).
             If omitted, some default compression will be used that will
             probably work but might lead to problems. See
-            tmps._set_compr_params() for more information.
+            :func:`tmps._set_compr_params` for more information.
         gs (list[float]):
             List of cutoffs :math:`g`, assuming that for :math:`J(\\omega)`
             it is :math:`g(\\omega)=g\\omega`.
@@ -322,14 +322,14 @@ def map(h_loc, a, state_shape, j, domain, g, ncap):
             Constant :math:`g`, assuming that for :math:`J(\\omega)` it is
             :math:`g(\\omega)=g\\omega`.
         ncap (int):
-            Number internally used by ``py-orthpol``.
+            Number internally used by py-orthpol.
 
     Returns:
         list[list[numpy.ndarray]]:
             Terms of the effective Hamiltonian acting on the chain after the
             chain mapping. Two lists, one with the single-site operators and the
             other with adjacent-site operators that act on two sites. See the
-            input parameters of ``tedopa.tmps.evolve()``
+            input parameters of :func:`tmps.evolve`
 
     """
     params = _get_parameters(
@@ -347,7 +347,7 @@ def _get_singlesite_ops(h_loc, params, bs, b_daggers):
 
     Args:
         h_loc (numpy.ndarray): Local Hamiltonian
-        params (list): Parameters as returned by ``_get_parameters()``
+        params (list): Parameters as returned by :func:`_get_parameters`
         bs (list): The list of annihilation operators acting on each site
             of the chain
         b_daggers (list): The list of creation operators acting on each site
@@ -372,7 +372,7 @@ def _get_twosite_ops(a, params, bs, b_daggers):
         a (numpy.ndarray):
             Interaction operator provided by the user
         params (list):
-            Parameters as returned by _get_parameters()
+            Parameters as returned by :func:`_get_parameters`
         bs (list):
             The list of annihilation operators acting on each site of the chain
         b_daggers (list):
@@ -399,7 +399,7 @@ def _get_parameters(n, j, domain, g, ncap):
     Args:
         n (int):
             Number of recurrence coefficients required
-            (rc.recurrenceCoefficients() actually returns one more and the
+            (:func:`rc.recurrenceCoefficients` actually returns one more and the
             system site does not need one, so the argument n-2 is passed)
         j (types.LambdaType):
             Spectral function :math:`J(\\omega)` as defined in Chin et al.
@@ -411,7 +411,7 @@ def _get_parameters(n, j, domain, g, ncap):
             Constant :math:`g`, assuming that for :math:`J(\\omega)` it is
             :math:`g(\\omega)=g\\omega`.
         ncap (int):
-            Number internally used by ``py-orthpol`` to determine accuracy of
+            Number internally used by py-orthpol to determine accuracy of
             the returned recurrence coefficients. Must be <= 60000,
             the higher the longer the calculation of the recurrence
             coefficients takes and the more accurate it becomes.
@@ -449,7 +449,7 @@ def _get_annihilation_op(dim):
 def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
     """
     This is a function specifically designed for TEDOPA systems. It calculates
-    the proper 'ts' and 'subsystems' input lists for tmps.evolve() from a
+    the proper 'ts' and 'subsystems' input lists for :func:`tmps.evolve` from a
     list of times where the full state shall be returned and a list of times
     where only the reduced state of the system in question shall be returned.
     ts then basically is a concatenation of ts_full and ts_system,
@@ -474,7 +474,7 @@ def get_times(ts_full, ts_system, len_state, sys_position, sys_length):
     Returns:
         tuple(list[float], list[list[int]]):
             Times and subsystems in the form that has to be provided to
-            tmps.evolve()
+            :func:`tmps.evolve`
     """
     ts = list(ts_full) + list(ts_system)
     subsystems = [[0, len_state]] * len(ts_full) + \

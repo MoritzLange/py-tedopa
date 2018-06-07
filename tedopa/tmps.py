@@ -46,13 +46,13 @@ which a computer can handle even for very large systems.
 For more information, see chapter 7 in Schollwöck’s paper Annals of
 Physics 326, 96-192 (2011); doi: 10.1016/j.aop.2010.09.012
 
-In this file, ``evolve()`` is the main function to be called to evolve a
-state in time. It will itself call ``_trotter_slice()`` which will call
-``_trotter_two()`` or ``_trotter_four()`` to calculate the :math:`U(\\tau)`
-representing one Trotter slice. When that is done, ``evolve()`` will take it
-and pass it on to ``_time_evolution()`` which will then go through the
-Trotter iterations, thus actually evolving the state in time, and store the
-requested results on the way.
+In this file, :func:`evolve` is the main function to be called to evolve a
+state in time. It will itself call :func:`_trotter_slice` which will call
+:func:`_trotter_two` or :func:`_trotter_four` to calculate the :math:`U(
+\\tau)` representing one Trotter slice. When that is done, :func:`evolve`
+will take it and pass it on to :func:`_time_evolution` which will then go
+through the Trotter iterations, thus actually evolving the state in time,
+and store the requested results on the way.
 """
 from collections import Counter
 from itertools import repeat
@@ -92,11 +92,12 @@ def _times_to_steps(ts, num_trotter_slices):
     Based on the requested times `ts`, calculate Trotter step numbers at which
     (subsystems of) evolved states need to be saved.
 
-    Doctests:
-    >>> _times_to_steps([10, 25, 30], 100)
-    ([33, 83, 100], 0.3)
-    >>> _times_to_steps([8, 26, 19], 80)
-    ([25, 80, 58], 0.325)
+    .. doctest::
+
+        >>> _times_to_steps([10, 25, 30], 100)
+        ([33, 83, 100], 0.3)
+        >>> _times_to_steps([8, 26, 19], 80)
+        ([25, 80, 58], 0.325)
 
     Args:
         ts (list[float]):
@@ -158,7 +159,7 @@ def _trotter_slice(hamiltonians, tau, num_sites, trotter_order, compr):
             acting on every single site, the Hamiltonians in the second acting
             on every pair of two adjacent sites
         tau (float):
-            As defined in _times_to_steps()
+            As defined in :func:`_times_to_steps`
         num_sites (int):
             Number of sites of the state to be evolved
         trotter_order (int):
@@ -186,9 +187,9 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
     Get a list of ordered operator exponentials for one second-order Trotter
     slice.
 
-    Based on the description in the documentation of _trotter_slice() and on
-    the paper by Schollwöck, :math:`N` = 3, with :math:`\\tau_1 =\\tau_3 =
-    \\tau/2` and :math:`\\tau_2=\\tau`.
+    Based on the description in the documentation of :func:`_trotter_slice`
+    and on the paper by Schollwöck, :math:`N` = 3, with :math:`\\tau_1
+    =\\tau_3 = \\tau/2` and :math:`\\tau_2=\\tau`.
 
     Args:
         hamiltonians (list):
@@ -196,7 +197,7 @@ def _trotter_two(hamiltonians, tau, num_sites, compr):
             acting on every single site, the Hamiltonians in the second acting
             on every pair of two  adjacent sites
         tau (float):
-            As defined in _times_to_steps()
+            As defined in :func:`_times_to_steps`
         num_sites (int):
             Number of sites of the state to be evolved
         compr (dict): Parameters for the compression which is executed on every
@@ -223,8 +224,8 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
     Get a list of ordered operator exponentials for one fourth-order Trotter
     slice.
 
-    Based on the description in the documentation of _trotter_slice() and on
-    the paper by Schollwöck, :math:`N` = 11, with
+    Based on the description in the documentation of :func:`_trotter_slice`
+    and on the paper by Schollwöck, :math:`N` = 11, with
 
     .. math::
         \\tau_1 = \\tau_{11} = \\frac{\\tau}{2(4 - 4^{1/3})},
@@ -247,7 +248,7 @@ def _trotter_four(hamiltonians, tau, num_sites, compr):
             acting on every single site, the Hamiltonians in the second acting
             on every pair of two adjacent sites
         tau (float):
-            As defined in _times_to_steps()
+            As defined in :func:`_times_to_steps`
         num_sites (int):
             Number of sites of the state to be evolved
         compr (dict):
@@ -296,7 +297,7 @@ def _get_h_list(hamiltonians, num_sites):
 
     Args:
         hamiltonians (list):
-            Hamiltonians as in evolve()
+            Hamiltonians as in :func:`evolve`
         num_sites (int):
             Number of sites of the state to be evolved
 
@@ -323,17 +324,16 @@ def _get_u_list_odd(dims, h_single, h_adjacent, tau):
     i.e. transforms :math:`\\{h_{j, j+1} : j \\text{ odd}\\}` into :math:`\\{
     \\text{e}^{\\mathrm{i} h_{j,j+1} \\tau} : j \\text{ odd}\\}`
 
-    Doctest:
-    >>> dims = [2, 2, 2, 2]
-    >>> sx = np.array([[0, 1], [1, 0]])
-    >>> sz = np.array([[1, 0], [0, -1]])
-    >>> tau = 1
-    >>> actual_result = _get_u_list_odd(dims, [sx] * 4, [np.kron(sz, sz)] * 3, \
-        tau)
-    >>> expected_result = [expm(-1j * tau * (np.kron(sz,sz) + \
-        .5 * (np.kron(sx, np.identity(2)) + np.kron(np.identity(2), sx))))] * 2
-    >>> print(np.array_equal(expected_result, actual_result))
-    True
+    .. doctest::
+
+        >>> dims = [2, 2, 2, 2]
+        >>> sx = np.array([[0, 1], [1, 0]])
+        >>> sz = np.array([[1, 0], [0, -1]])
+        >>> tau = 1
+        >>> actual_result = _get_u_list_odd(dims, [sx] * 4, [np.kron(sz, sz)] * 3, tau)
+        >>> expected_result = [expm(-1j * tau * (np.kron(sz,sz) + .5 * (np.kron(sx, np.identity(2)) + np.kron(np.identity(2), sx))))] * 2
+        >>> print(np.array_equal(expected_result, actual_result))
+        True
 
     Args:
         dims (list):
@@ -365,10 +365,6 @@ def _get_u_list_even(dims, h_single, h_adjacent, tau):
     Calculates individual operator exponentials of adjacent even-odd sites,
     i.e. transforms :math:`\\{h_{j,j+1} : j \\text{ even}\\}` into :math:`\\{
     \\text{e}^{\\mathrm{i} h_{j,j+1} \\tau} : j \\text{ even}\\}`
-
-    .. todo::
-       Add doctest that gives an example of the inputs and outputs. Use four
-       sites, ``H_single = Z, h_adj  = XX``
 
     Args:
         dims (list):
@@ -468,13 +464,14 @@ def matrix_to_mpo(matrix, shape, compr=None):
     Converts given :math:`M \\times N` matrix in global form into an MPO with
     the given shape. The number of legs per site must be the same for all sites.
 
-    Doctest:
-    >>> matrix = np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]])
-    >>> mpo = matrix_to_mpo(matrix, [[3, 3]])
-    >>> print(mpo.to_array_global())
-    [[1 0 0]
-     [0 0 0]
-     [0 0 0]]
+    .. doctest::
+
+        >>> matrix = np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]])
+        >>> mpo = matrix_to_mpo(matrix, [[3, 3]])
+        >>> print(mpo.to_array_global())
+        [[1 0 0]
+         [0 0 0]
+         [0 0 0]]
 
     Args:
         matrix (numpy.ndarray):
@@ -595,11 +592,11 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_order,
             mpnum.MPArrays will be stored
         trotter_compr (dict):
             Compression parameters used in the iterations of Trotter (in the
-            form required by mpnum.MPArray.compress(). If unsure, look at
+            form required by :func:`mpnum.MPArray.compress`. If unsure, look at
             https://github.com/dseuss/mpnum/blob/master/examples/mpnum_intro.ipynb .)
             If omitted, some default compression will be used that will
-            probably work but might lead to problems. See _set_compr_params()
-            for more information.
+            probably work but might lead to problems. See
+            :func:`_set_compr_params` for more information.
         compr (dict):
             Parameters for the compression which is executed on every MPA during
             the calculations, except for the Trotter calculation, where
@@ -610,8 +607,8 @@ def evolve(state, hamiltonians, num_trotter_slices, method, trotter_order,
             which would lead to e.g.
             compr = dict(method='svd', rank=10, relerr=1e-12).
             If omitted, some default compression will be used that will
-            probably work but might lead to problems. See _set_compr_params()
-            for more information.
+            probably work but might lead to problems. See
+            :func:`_set_compr_params` for more information.
         subsystems (list):
             A list defining for which subsystem the reduced density matrix or
             whether the full state should be returned for a time in ``ts``.
@@ -679,12 +676,12 @@ def _time_evolution(state, us, step_numbers, subsystems, tau, method,
         us (list[mpnum.MPArray]):
             List of ordered operator exponentials for a single Trotter slice
         step_numbers (list[int]):
-            List of time steps as generated by _times_to_steps()
+            List of time steps as generated by :func:`_times_to_steps`
         subsystems (list[list[int]]):
             Sites for which the subsystem states should be returned at the
             respective times
         tau (float):
-            Duration of one Trotter slice. As defined in _times_to_steps()
+            Duration of one Trotter slice. As defined in :func:`_times_to_steps`
         method (str):
             Which method to use. Either 'mps', 'mpo' or 'pmps'.
         trotter_compr (dict):
@@ -756,7 +753,8 @@ def _append(times, states, compr_errors, trot_errors, tau, i, j, step_numbers,
             subsystems, state, accumulated_overlap,
             accumulated_trotter_error, method):
     """
-    Function to append time evolved state etc to output of _time_evolution()
+    Function to append time evolved state etc to output of
+    :func:`_time_evolution`
 
     Args:
         times (list[float]):
@@ -786,7 +784,7 @@ def _append(times, states, compr_errors, trot_errors, tau, i, j, step_numbers,
         accumulated_trotter_error (float):
             The accumulated Trotter error
         method (str):
-            Method to use as defined in evolve()
+            Method to use as defined in :func:`evolve`
 
     Returns:
         None: Nothing, changes happen in place

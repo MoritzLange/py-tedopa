@@ -115,10 +115,10 @@ def tedopa1_for_bosonic_vacuum_state(system_site_state, len_chain,
             Level of verbose output. 0 means no output, 1 will show the
             progress of the calculations. 2 and 3 will also indicate bond
             dimensions in the evolved state. For more information see
-            ``tedopa.tedopa1()``
+            :func:`tedopa.tedopa1`
 
     Returns:
-        tuple[list[mp.MPArray.dtype], list[float]]:
+        tuple[list[float], list[mpnum.MPArray.dtype]]:
             A list of times corresponding to the respective expectation
             values and a list of the expectation values of the provided
             observable for evolved states
@@ -197,10 +197,10 @@ def tedopa2_for_bosonic_vacuum_state(system_site_state, len_chain,
             Level of verbose output. 0 means no output, 1 will show the
             progress of the calculations. 2 and 3 will also indicate bond
             dimensions in the evolved state. For more information see
-            ``tedopa.tedopa2()``
+            :func:`tedopa.tedopa2`
 
     Returns:
-        tuple[list[mp.MPArray.dtype], list[float]]:
+        tuple[list[float], list[mpnum.MPArray.dtype]]:
             A list of times corresponding to the respective expectation
             values and a list of the expectation values of the provided
             observable for evolved states
@@ -236,14 +236,14 @@ def calculate_expectation_values(states, observable):
 
     Args:
         states (list[mpnum.MPArray]): List of states :math:`\\{\\rho\\}`.
-            They are assumed to be MPOs
+            They are assumed to be MPOs and already normalized
         observable (numpy.ndarray): The matrix representing the observable
             :math:`M` in global form (as opposed to local form. Global form
             is just the usual form to write matrices in QM. For more
             information, see the ``mpnum`` documentation.)
 
     Returns:
-        list[mp.MPArray.dtype]: List of expectation values for the states
+        list[mpnum.MPArray.dtype]: List of expectation values for the states
     """
     if not all(state.shape == states[0].shape for state in states):
         raise ValueError("The states in the provided list are not all of the "
