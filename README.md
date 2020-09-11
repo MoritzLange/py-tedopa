@@ -16,7 +16,7 @@ TEDOPA relies on a two-step approach to simulate quantum systems that are couple
 ## Installation
 Requirements:
 
-* [py-orthpol](https://github.com/moritzlange/py-orthpol)
+* [MoritzLange/py-orthpol](https://github.com/moritzlange/py-orthpol)
 * [mpnum](https://github.com/dseuss/mpnum)
 * numpy, scipy, setuptools
 
